@@ -1,0 +1,73 @@
+import express, { Application } from "express";
+import cors from "cors";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import compression from "compression";
+import hpp from "hpp";
+import rateLimit from "express-rate-limit";
+import { env, isProd } from "./config/env";
+import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
+import { sanitizeRequest } from "./middlewares/sanitize.middleware";
+import logger from "./config/logger";
+import authRoutes from "./routes/auth.routes";
+
+export function createApp(): Application {
+  const app = express();
+
+  app.set("trust proxy", 1);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: isProd ? undefined : false,
+      crossOriginResourcePolicy: { policy: "same-site" },
+    })
+  );
+
+  app.use(
+    cors({
+      origin: env.CLIENT_URL,
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+
+  app.use(express.json({ limit: "10kb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+  app.use(cookieParser(env.COOKIE_SECRET));
+  app.use(compression());
+
+  app.use(sanitizeRequest);
+
+  app.use(hpp());
+
+  app.use(
+    rateLimit({
+      windowMs: env.RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+      max: env.RATE_LIMIT_MAX_REQUESTS,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { success: false, message: "Too many requests, please try again later." },
+    })
+  );
+
+  // --- Request logging (method + path only, no bodies/sensitive data) ---
+  app.use((req, _res, next) => {
+    logger.debug(`${req.method} ${req.path}`, { ip: req.ip });
+    next();
+  });
+
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ success: true, message: "Mentora API is running" });
+  });
+
+  // Feature routes
+  app.use("/api/auth", authRoutes);
+  // app.use("/api/users", userRoutes);
+
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+}
