@@ -10,6 +10,8 @@ router.post("/register", authLimiter, requireCaptcha, authController.register);
 router.post("/login", authLimiter, requireCaptcha, authController.login);
 router.post("/mfa/login-verify", authLimiter, authController.verifyMfaLogin);
 router.post("/unlock-account", authLimiter, authController.unlockAccount);
+router.post("/forgot-password", authLimiter, authController.forgotPassword);
+router.post("/reset-password", authLimiter, authController.resetPassword);
 
 router.post("/mfa/setup", protect, authController.setupMfa);
 router.post("/mfa/verify-setup", protect, authController.verifyMfaSetup);

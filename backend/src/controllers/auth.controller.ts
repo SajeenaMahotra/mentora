@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema } from "../dtos/user.dto";
+import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema } from "../dtos/user.dto";
 import { authService } from "../services/auth.service";
 
 export const authController = {
@@ -92,6 +92,26 @@ export const authController = {
     try {
       const userId = req.params.userId as string;
       const result = await authService.adminUnlockAccount(userId);
+      res.status(200).json({ success: true, message: result.message });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = forgotPasswordSchema.parse(req.body);
+      const result = await authService.forgotPassword(dto);
+      res.status(200).json({ success: true, message: result.message });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = resetPasswordSchema.parse(req.body);
+      const result = await authService.resetPassword(dto);
       res.status(200).json({ success: true, message: result.message });
     } catch (err) {
       next(err);

@@ -4,17 +4,26 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import compression from "compression";
 import hpp from "hpp";
+import path from "path";
 import rateLimit from "express-rate-limit";
 import { env, isProd } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 import { sanitizeRequest } from "./middlewares/sanitize.middleware";
 import logger from "./config/logger";
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
 
 export function createApp(): Application {
   const app = express();
 
   app.set("trust proxy", 1);
+
+
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), {
+    maxAge: "1d",
+    index: false,
+    dotfiles: "deny",
+  }));
 
   app.use(
     helmet({
@@ -63,7 +72,7 @@ export function createApp(): Application {
 
   // Feature routes
   app.use("/api/auth", authRoutes);
-  // app.use("/api/users", userRoutes);
+  app.use("/api/users", userRoutes);
 
 
   app.use(notFoundHandler);
