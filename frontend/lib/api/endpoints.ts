@@ -16,11 +16,17 @@ export const ENDPOINTS = {
   ME_EMAIL: "/users/me/email",
   ME_SUBJECTS: "/users/me/subjects",
 
-  // Categories
-  CATEGORIES: "/categories",
-
   // Packages
   PACKAGES: "/packages",
   PACKAGES_MINE: "/packages/mine",
   PACKAGE_BY_ID: (id: string) => `/packages/${id}`,
+
+   // Admin — users
+  ADMIN_USERS: "/admin/users",
+  ADMIN_USER_STATUS: (id: string) => `/admin/users/${id}/status`,
+  ADMIN_USER_DELETE: (id: string) => `/admin/users/${id}`,
+
+  // Categories
+  CATEGORIES: "/categories",
+  CATEGORY_BY_ID: (id: string) => `/categories/${id}`,
 };

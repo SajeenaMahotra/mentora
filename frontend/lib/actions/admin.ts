@@ -1,55 +1,74 @@
 import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
-export async function getAdminUsersAction() {
+interface ListUsersParams {
+  page?: number;
+  limit?: number;
+  role?: string;
+  status?: string;
+  search?: string;
+}
+
+export async function getAdminUsersAction(params: ListUsersParams = {}) {
   try {
-    const res = await api.get("/admin/users");
-    return { success: true, data: res.data?.data || res.data };
+    const res = await api.get(ENDPOINTS.ADMIN_USERS, { params });
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to load users" };
   }
 }
 
-export async function getAdminUserByIdAction(id: string) {
+export async function updateUserStatusAction(id: string, status: "active" | "suspended") {
   try {
-    const res = await api.get(`/admin/users/${id}`);
-    return { success: true, data: res.data?.data || res.data };
+    const res = await api.patch(ENDPOINTS.ADMIN_USER_STATUS(id), { status });
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to update status" };
   }
 }
 
-export async function updateAdminUserAction(id: string, data: { is_active?: boolean; role?: string }) {
+export async function deleteUserAction(id: string) {
   try {
-    const res = await api.patch(`/admin/users/${id}`, data);
-    return { success: true, data: res.data?.data || res.data };
+    const res = await api.delete(ENDPOINTS.ADMIN_USER_DELETE(id));
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to delete user" };
   }
 }
 
-export async function deleteAdminUserAction(id: string) {
+// Categories
+export async function getCategoriesAction() {
   try {
-    await api.delete(`/admin/users/${id}`);
-    return { success: true };
+    const res = await api.get(ENDPOINTS.CATEGORIES);
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to load categories" };
   }
 }
 
-export async function getAdminBookingsAction() {
+export async function createCategoryAction(name: string) {
   try {
-    const res = await api.get("/admin/bookings");
-    return { success: true, data: res.data?.data || res.data };
+    const res = await api.post(ENDPOINTS.CATEGORIES, { name });
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to create category" };
   }
 }
 
-export async function getAdminStatsAction() {
+export async function updateCategoryAction(id: string, name: string) {
   try {
-    const res = await api.get("/admin/stats");
-    return { success: true, data: res.data?.data || res.data };
+    const res = await api.patch(ENDPOINTS.CATEGORY_BY_ID(id), { name });
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to update category" };
+  }
+}
+
+export async function deleteCategoryAction(id: string) {
+  try {
+    const res = await api.delete(ENDPOINTS.CATEGORY_BY_ID(id));
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to delete category" };
   }
 }
