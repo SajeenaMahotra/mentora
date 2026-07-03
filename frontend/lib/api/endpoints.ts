@@ -9,22 +9,18 @@ export const ENDPOINTS = {
   RESET_PASSWORD: "/auth/reset-password",
   UNLOCK_ACCOUNT: "/auth/unlock-account",
 
-  // Mentors
-  MENTORS: "/serviceprovider",
-  MENTOR_BY_ID: (id: string) => `/serviceprovider/${id}`,
-  MENTOR_PROFILE: "/serviceprovider/profile",
-  RATE_MENTOR: (id: string) => `/serviceprovider/${id}/rate`,
+  // User / profile
+  ME: "/users/me",
+  ME_PHOTO: "/users/me/photo",
+  ME_PASSWORD: "/users/me/password",
+  ME_EMAIL: "/users/me/email",
+  ME_SUBJECTS: "/users/me/subjects",
 
-  // Misc
-  CATEGORIES: "/servicecategory",
-  BOOKINGS: "/booking",
-  BOOKING_BY_ID: (id: string) => `/booking/${id}`,
-  BOOKING_STATUS: (id: string) => `/booking/${id}/status`,
-  CONVERSATIONS: "/chat/conversations",
-  MESSAGES: (userId: string) => `/chat/messages/${userId}`,
-  SEND_MESSAGE: "/chat/send",
-  NOTIFICATIONS: "/notification",
-  MARK_READ: (id: string) => `/notification/${id}/read`,
-  ADMIN_USERS: "/admin/users",
-  ADMIN_USER_BY_ID: (id: string) => `/admin/users/${id}`,
+  // Categories
+  CATEGORIES: "/categories",
+
+  // Packages
+  PACKAGES: "/packages",
+  PACKAGES_MINE: "/packages/mine",
+  PACKAGE_BY_ID: (id: string) => `/packages/${id}`,
 };

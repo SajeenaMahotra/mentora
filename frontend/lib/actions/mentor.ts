@@ -1,50 +1,55 @@
-"use server";
 import api from "@/lib/api/axios";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 
-export async function getMentorsAction(params?: { category?: string; search?: string }) {
-  try {
-    const res = await api.get(ENDPOINTS.MENTORS, { params });
-    return { success: true, data: res.data };
-  } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
-  }
-}
-
-export async function getMentorByIdAction(id: string) {
-  try {
-    const res = await api.get(ENDPOINTS.MENTOR_BY_ID(id));
-    return { success: true, data: res.data };
-  } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
-  }
-}
-
-export async function getCategoriesAction() {
+export async function getCategories() {
   try {
     const res = await api.get(ENDPOINTS.CATEGORIES);
-    return { success: true, data: res.data };
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: "Failed to load categories" };
+    return { success: false, message: err.response?.data?.message || "Failed to load categories" };
   }
 }
 
-export async function rateMentorAction(id: string, rating: number) {
+export async function updateSubjects(subjectIds: string[]) {
   try {
-    await api.post(ENDPOINTS.RATE_MENTOR(id), { rating });
-    return { success: true };
+    const res = await api.patch(ENDPOINTS.ME_SUBJECTS, { subjects: subjectIds });
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to update subjects" };
   }
 }
 
-export async function updateMentorProfileAction(data: FormData) {
+export async function updateProfile(data: { fullname?: string; bio?: string }) {
   try {
-    const res = await api.put(ENDPOINTS.MENTOR_PROFILE, data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return { success: true, data: res.data };
+    const res = await api.patch(ENDPOINTS.ME, data);
+    return { success: true, data: res.data.data };
   } catch (err: any) {
-    return { success: false, message: err.response?.data?.message || "Failed" };
+    return { success: false, message: err.response?.data?.message || "Failed to update profile" };
+  }
+}
+
+export async function createPackage(data: {
+  title: string;
+  description: string;
+  subject: string;
+  durationValue: number;
+  durationUnit: "day" | "week" | "month";
+  sessionType: "online" | "in-person" | "hybrid";
+  price: number;
+}) {
+  try {
+    const res = await api.post(ENDPOINTS.PACKAGES, data);
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to create package" };
+  }
+}
+
+export async function getMyPackages() {
+  try {
+    const res = await api.get(ENDPOINTS.PACKAGES_MINE);
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to load packages" };
   }
 }
