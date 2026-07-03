@@ -53,3 +53,12 @@ export async function getMyPackages() {
     return { success: false, message: err.response?.data?.message || "Failed to load packages" };
   }
 }
+
+export async function getMyProfile() {
+  try {
+    const res = await api.get(ENDPOINTS.ME);
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to load profile" };
+  }
+}
