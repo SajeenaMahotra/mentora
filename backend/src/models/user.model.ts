@@ -1,7 +1,7 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
 import { UserRole, PasswordHistoryEntry, MfaBackupCode } from "../types/user.type";
 
-export type AccountStatus = "active" | "suspended" | "banned";
+export type AccountStatus = "active" | "suspended";
 
 export interface IUser extends Document {
   fullname: string;
@@ -16,9 +16,13 @@ export interface IUser extends Document {
   isProfileSetup: boolean;
 
   // mentor-only
-  subjects: Schema.Types.ObjectId[]; // category IDs
+  subjects: Types.ObjectId[]; // was Schema.Types.ObjectId[] // category IDs
   averageRating: number;
   ratingCount: number;
+
+  // account lifecycle
+  isDeleted: boolean;
+  deletedAt?: Date;
 
   // security
   failedLoginAttempts: number;
@@ -35,6 +39,7 @@ export interface IUser extends Document {
   emailVerified: boolean;
   emailVerifyTokenHash?: string;
   emailVerifyExpires?: Date;
+  tokenValidAfter?: Date; // JWTs issued (iat) before this are rejected — used for immediate session invalidation on suspend/delete
 
   createdAt: Date;
   updatedAt: Date;
@@ -46,7 +51,7 @@ const userSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ["learner", "mentor", "admin"], default: "learner" },
-    status: { type: String, enum: ["active", "suspended", "banned"], default: "active" },
+    status: { type: String, enum: ["active", "suspended"], default: "active" },
 
     bio: { type: String, maxlength: 1000 },
     profilePhoto: { type: String },
@@ -55,6 +60,9 @@ const userSchema = new Schema<IUser>(
     subjects: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     averageRating: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
 
     failedLoginAttempts: { type: Number, default: 0, select: false },
     lockedUntil: { type: Date, select: false },
@@ -79,11 +87,16 @@ const userSchema = new Schema<IUser>(
 
     emailVerifyTokenHash: { type: String, select: false },
     emailVerifyExpires: { type: Date, select: false },
+
+    tokenValidAfter: { type: Date, select: false },
   },
   { timestamps: true }
 );
 
 userSchema.index({ role: 1 });
 userSchema.index({ subjects: 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ isDeleted: 1 });
+userSchema.index({ createdAt: -1 });
 
 export default model<IUser>("User", userSchema);

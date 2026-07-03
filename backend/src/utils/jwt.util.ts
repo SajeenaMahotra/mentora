@@ -7,6 +7,7 @@ const ACCESS_EXPIRES_IN = "15m";
 export interface AccessTokenPayload {
   sub: string; // user id
   role: UserRole;
+   iat?: number;
 }
 
 export function signAccessToken(payload: AccessTokenPayload): string {
