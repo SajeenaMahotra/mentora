@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import packageRoutes from "./routes/package.routes";
 import categoryRoutes from "./routes/category.routes";
+import adminRoutes from "./routes/admin.routes";
 
 export function createApp(): Application {
   const app = express();
@@ -77,6 +78,7 @@ export function createApp(): Application {
   app.use("/api/users", userRoutes);
   app.use("/api/packages", packageRoutes);
   app.use("/api/categories", categoryRoutes);
+  app.use("/api/admin", adminRoutes);
 
 
   app.use(notFoundHandler);

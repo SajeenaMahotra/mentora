@@ -1,4 +1,12 @@
-import User, { IUser } from "../models/user.model";
+import User, { AccountStatus, IUser } from "../models/user.model";
+
+interface FindAllParams {
+  page: number;
+  limit: number;
+  role?: string;
+  status?: import("../models/user.model").AccountStatus;
+  search?: string;
+}
 
 export const userRepository = {
   findByEmail(email: string) {
@@ -153,5 +161,49 @@ export const userRepository = {
 
   updateSubjects(id: string, subjectIds: string[]) {
     return User.findByIdAndUpdate(id, { subjects: subjectIds }, { new: true });
+  },
+
+  findAllPaginated({ page, limit, role, status, search }: FindAllParams) {
+    const filter: Record<string, any> = { isDeleted: { $ne: true } };
+    if (role) filter.role = role;
+    if (status) filter.status = status;
+    if (search) {
+      filter.$or = [
+        { fullname: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    return Promise.all([
+      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(filter),
+    ]).then(([users, total]) => ({
+      users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    }));
+  },
+
+  updateStatus(id: string, status: AccountStatus) {
+    return User.findByIdAndUpdate(id, { status, tokenValidAfter: new Date() }, { new: true });
+  },
+
+  softDelete(id: string) {
+    return User.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        tokenValidAfter: new Date(),
+        fullname: "Deleted User",
+        email: `deleted-${id}@mentora.invalid`,
+        $unset: { bio: 1, profilePhoto: 1 },
+      },
+      { new: true }
+    );
   },
 };
