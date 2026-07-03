@@ -146,4 +146,12 @@ export const userRepository = {
       $unset: { emailVerifyTokenHash: 1, emailVerifyExpires: 1 },
     });
   },
+
+  setProfileSetup(id: string, value: boolean) {
+    return User.findByIdAndUpdate(id, { isProfileSetup: value }, { new: true });
+  },
+
+  updateSubjects(id: string, subjectIds: string[]) {
+    return User.findByIdAndUpdate(id, { subjects: subjectIds }, { new: true });
+  },
 };

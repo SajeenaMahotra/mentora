@@ -88,3 +88,8 @@ export const verifyEmailSchema = z.object({
   token: z.string().min(1),
 });
 export type VerifyEmailDto = z.infer<typeof verifyEmailSchema>;
+
+export const updateSubjectsSchema = z.object({
+  subjects: z.array(z.string()).min(1, "At least one subject is required"),
+});
+export type UpdateSubjectsDto = z.infer<typeof updateSubjectsSchema>;
