@@ -21,7 +21,7 @@ export const ENDPOINTS = {
   PACKAGES_MINE: "/packages/mine",
   PACKAGE_BY_ID: (id: string) => `/packages/${id}`,
 
-   // Admin — users
+  // Admin — users
   ADMIN_USERS: "/admin/users",
   ADMIN_USER_STATUS: (id: string) => `/admin/users/${id}/status`,
   ADMIN_USER_DELETE: (id: string) => `/admin/users/${id}`,
@@ -29,4 +29,11 @@ export const ENDPOINTS = {
   // Categories
   CATEGORIES: "/categories",
   CATEGORY_BY_ID: (id: string) => `/categories/${id}`,
+
+  // Chat
+  CONVERSATIONS: "/conversations",
+  CONVERSATION_MESSAGES: (id: string, before?: string) =>
+    before
+      ? `/conversations/${id}/messages?before=${before}`
+      : `/conversations/${id}/messages`,
 };
