@@ -8,12 +8,21 @@ import { ConversationSummary } from "@/lib/api/chat";
 
 export default function MessagesPage() {
   const [selected, setSelected] = useState<ConversationSummary | null>(null);
-  const { setActiveConversationId } = useChatContext();
+  const { conversations, setActiveConversationId, pendingOpenId, clearPendingOpen } = useChatContext();
 
   const handleSelect = (conv: ConversationSummary) => {
     setSelected(conv);
     setActiveConversationId(conv.id);
   };
+
+  useEffect(() => {
+    if (!pendingOpenId) return;
+    const match = conversations.find((c) => c.id === pendingOpenId);
+    if (match) {
+      handleSelect(match);
+      clearPendingOpen();
+    }
+  }, [pendingOpenId, conversations, clearPendingOpen]);
 
   useEffect(() => {
     return () => setActiveConversationId(null);

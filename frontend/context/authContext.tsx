@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { disconnectSocket } from "@/lib/socket";
 
 interface User {
   _id: string;
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(JSON.parse(userData));
         setIsAuthenticated(true);
       }
-    } catch {}
+    } catch { }
     setLoading(false);
   }, []);
 
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    disconnectSocket();
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);

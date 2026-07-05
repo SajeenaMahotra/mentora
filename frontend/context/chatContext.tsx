@@ -19,6 +19,9 @@ interface ChatContextType {
   setActiveConversationId: (id: string | null) => void;
   totalUnread: number;
   refresh: () => void;
+  openConversation: (conversation: ConversationSummary) => void;
+  pendingOpenId: string | null;
+  clearPendingOpen: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -28,6 +31,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const activeIdRef = useRef<string | null>(null);
 
   const setActiveConversationId = useCallback((id: string | null) => {
@@ -83,11 +87,43 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthenticated, user]);
 
+  const openConversation = useCallback((conversation: ConversationSummary) => {
+  setConversations((prev) => {
+    const existingIndex = prev.findIndex((c) => c.id === conversation.id);
+    if (existingIndex >= 0) {
+      const existing = prev[existingIndex];
+      const merged: ConversationSummary = {
+        ...existing,
+        participant: conversation.participant ?? existing.participant,
+        lastMessageAt: existing.lastMessageAt ?? conversation.lastMessageAt,
+        lastMessagePreview: existing.lastMessagePreview ?? conversation.lastMessagePreview,
+      };
+      const next = [...prev];
+      next[existingIndex] = merged;
+      return next;
+    }
+    return [conversation, ...prev];
+  });
+  setPendingOpenId(conversation.id);
+}, []);
+
+  const clearPendingOpen = useCallback(() => setPendingOpenId(null), []);
+
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   return (
     <ChatContext.Provider
-      value={{ conversations, loading, activeConversationId, setActiveConversationId, totalUnread, refresh }}
+      value={{
+        conversations,
+        loading,
+        activeConversationId,
+        setActiveConversationId,
+        totalUnread,
+        refresh,
+        openConversation,
+        pendingOpenId,
+        clearPendingOpen,
+      }}
     >
       {children}
     </ChatContext.Provider>

@@ -163,6 +163,7 @@ export default function ChatWindow({ conversationId, otherParticipant, onClose, 
 
             <div className="space-y-1.5">
               {msgs.map((msg, i) => {
+                console.log("DEBUG", { sender: msg.sender._id, me: user?._id, match: msg.sender._id === user?._id });
                 const isMe = msg.sender._id === user?._id;
                 const showAvatar = !isMe && (i === 0 || msgs[i - 1]?.sender._id !== msg.sender._id);
 
