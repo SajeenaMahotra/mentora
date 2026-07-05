@@ -1,17 +1,20 @@
 "use client";
-import { useState, useEffect } from "react";
-import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup } from "@/lib/actions/settings";
+import { useState, useEffect, useRef } from "react";
+import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto } from "@/lib/actions/settings";
 import { toast } from "sonner";
+import { useAuth } from "@/context/authContext";
 
 interface Account {
   fullname: string;
   email: string;
   emailVerified: boolean;
   mfaEnabled: boolean;
+  profilePhoto: string | null;
 }
 
 export default function MentorSettingsPage() {
   const [account, setAccount] = useState<Account | null>(null);
+  const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
 
   const [fullname, setFullname] = useState("");
@@ -29,6 +32,15 @@ export default function MentorSettingsPage() {
   const [mfaCode, setMfaCode] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
 
+  const [disableStep, setDisableStep] = useState(false);
+  const [disablePw, setDisablePw] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [disabling, setDisabling] = useState(false);
+
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     getMe().then((res) => {
       if (res.success) {
@@ -41,15 +53,20 @@ export default function MentorSettingsPage() {
   }, []);
 
   const handleSaveName = async () => {
-    if (!fullname.trim()) return toast.error("Name cannot be empty");
-    setSavingName(true);
-    const res = await updateName(fullname.trim());
-    if (res.success) {
-      toast.success("Name updated");
-      setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
-    } else toast.error(res.message);
-    setSavingName(false);
-  };
+  if (!fullname.trim()) return toast.error("Name cannot be empty");
+  setSavingName(true);
+  const res = await updateName(fullname.trim());
+  if (res.success) {
+    toast.success("Name updated");
+    setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
+    if (user) {
+      const updated = { ...user, fullname: fullname.trim() };
+      setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+    }
+  } else toast.error(res.message);
+  setSavingName(false);
+};
 
   const handleChangeEmail = async () => {
     if (!newEmail || !emailPassword) return toast.error("Fill in both fields");
@@ -100,6 +117,42 @@ export default function MentorSettingsPage() {
     setMfaLoading(false);
   };
 
+  const handleDisableMfa = async () => {
+    if (!disablePw || disableCode.length < 6) return toast.error("Fill in both fields");
+    setDisabling(true);
+    const res = await disableMfa({ currentPassword: disablePw, code: disableCode });
+    if (res.success) {
+      toast.success(res.message);
+      setAccount((prev) => (prev ? { ...prev, mfaEnabled: false } : prev));
+      setDisableStep(false);
+      setDisablePw("");
+      setDisableCode("");
+    } else toast.error(res.message);
+    setDisabling(false);
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  setPhotoPreview(URL.createObjectURL(file));
+  setUploadingPhoto(true);
+  const res = await uploadPhoto(file);
+  if (res.success) {
+    toast.success("Photo updated");
+    setAccount((prev) => (prev ? { ...prev, profilePhoto: res.data.profilePhoto } : prev));
+    if (user) {
+      const updated = { ...user, profilePhoto: res.data.profilePhoto };
+      setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+    }
+  } else {
+    toast.error(res.message);
+    setPhotoPreview(null);
+  }
+  setUploadingPhoto(false);
+};
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -114,6 +167,43 @@ export default function MentorSettingsPage() {
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Settings</h1>
         <p className="text-slate-500 text-sm">Manage your account and security.</p>
       </div>
+
+      <section className="bg-white rounded-2xl border border-slate-100 p-6">
+        <h2 className="text-base font-semibold text-slate-900 mb-4">Profile photo</h2>
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-2xl overflow-hidden flex-shrink-0">
+            {photoPreview ? (
+              <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
+            ) : account?.profilePhoto ? (
+              <img
+                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${account.profilePhoto}`}
+                className="w-full h-full object-cover"
+                alt="profile"
+              />
+            ) : (
+              fullname?.[0]?.toUpperCase() || "U"
+            )}
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="text-sm font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 disabled:opacity-60 px-4 py-2 rounded-xl transition"
+            >
+              {uploadingPhoto ? "Uploading..." : "Change photo"}
+            </button>
+            <p className="text-xs text-slate-400 mt-1.5">JPG, PNG up to 2MB</p>
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+        </div>
+      </section>
 
       <section className="bg-white rounded-2xl border border-slate-100 p-6">
         <h2 className="text-base font-semibold text-slate-900 mb-4">Account</h2>
@@ -204,9 +294,51 @@ export default function MentorSettingsPage() {
         </p>
 
         {account?.mfaEnabled ? (
-          <span className="inline-block text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full">
-            Enabled
-          </span>
+          disableStep ? (
+            <div className="space-y-3">
+              <input
+                type="password"
+                value={disablePw}
+                onChange={(e) => setDisablePw(e.target.value)}
+                placeholder="Current password"
+                className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+              />
+              <input
+                type="text"
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value.slice(0, 10))}
+                placeholder="6-digit code or recovery code"
+                className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDisableMfa}
+                  disabled={disabling}
+                  className="h-9 px-4 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition"
+                >
+                  {disabling ? "Disabling..." : "Confirm disable"}
+                </button>
+                <button
+                  onClick={() => setDisableStep(false)}
+                  className="h-9 px-4 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <span className="inline-block text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-full">
+                Enabled
+              </span>
+              <button
+                onClick={() => setDisableStep(true)}
+                className="text-sm font-medium text-red-600 hover:text-red-700"
+              >
+                Disable
+              </button>
+            </div>
+          )
         ) : mfaStep === "idle" ? (
           <button
             onClick={handleStartMfaSetup}

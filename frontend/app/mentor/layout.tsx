@@ -66,11 +66,10 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
               <Link
                 key={href}
                 href={href}
-                className={`block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  active
+                className={`block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${active
                     ? "bg-indigo-600 text-white shadow-sm shadow-indigo-900/40"
                     : "text-slate-300 hover:bg-white/5 hover:text-white"
-                }`}
+                  }`}
               >
                 {label}
               </Link>
@@ -83,13 +82,21 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
             href="/mentor/settings"
             className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/5 transition-colors"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-semibold text-indigo-300">
-              {user?.fullname
-                ?.split(" ")
-                .map((p) => p[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-semibold text-indigo-300 overflow-hidden">
+              {user?.profilePhoto ? (
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${user.profilePhoto}`}
+                  className="w-full h-full object-cover"
+                  alt={user.fullname}
+                />
+              ) : (
+                user?.fullname
+                  ?.split(" ")
+                  .map((p) => p[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase()
+              )}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">{user?.fullname}</p>

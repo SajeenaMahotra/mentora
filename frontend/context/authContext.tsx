@@ -9,6 +9,7 @@ interface User {
   email: string;
   role: "learner" | "mentor" | "admin";
   isProfileSetup: boolean;
+  profilePhoto?: string | null;
 }
 
 interface AuthContextType {

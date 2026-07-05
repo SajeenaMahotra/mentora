@@ -8,6 +8,7 @@ export const ENDPOINTS = {
   FORGOT_PASSWORD: "/auth/forgot-password",
   RESET_PASSWORD: "/auth/reset-password",
   UNLOCK_ACCOUNT: "/auth/unlock-account",
+  MFA_DISABLE: "/auth/disable-mfa",
 
   // User / profile
   ME: "/users/me",

@@ -58,3 +58,25 @@ export async function updateName(fullname: string) {
     return { success: false, message: err.response?.data?.message || "Failed to update name" };
   }
 }
+
+export async function disableMfa(payload: { currentPassword: string; code: string }) {
+  try {
+    const res = await api.post(ENDPOINTS.MFA_DISABLE, payload);
+    return { success: true, message: res.data.message };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to disable MFA" };
+  }
+}
+
+export async function uploadPhoto(file: File) {
+  try {
+    const fd = new FormData();
+    fd.append("photo", file);
+    const res = await api.post(ENDPOINTS.ME_PHOTO, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to upload photo" };
+  }
+}
