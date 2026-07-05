@@ -1,4 +1,4 @@
-import { RegisterDto, LoginDto, MfaLoginVerifyDto, UnlockAccountDto, ForgotPasswordDto, ResetPasswordDto } from "../dtos/user.dto";
+import { RegisterDto, LoginDto, MfaLoginVerifyDto, UnlockAccountDto, ForgotPasswordDto, ResetPasswordDto, DisableMfaDto } from "../dtos/user.dto";
 import { userRepository } from "../repositories/user.repository";
 import { ConflictError, UnauthorizedError, ForbiddenError, ValidationError } from "../errors/AppError";
 import {
@@ -240,5 +240,31 @@ export const authService = {
     await userRepository.updatePassword(user.id, newHash, updatedHistory);
 
     return { message: "Password reset successful. You can now log in with your new password." };
+  },
+
+  async disableMfa(userId: string, dto: DisableMfaDto) {
+    const user = await userRepository.findByIdWithPasswordAndMfa(userId);
+    if (!user) throw new UnauthorizedError();
+    if (!user.mfaEnabled) throw new ValidationError("MFA is not enabled");
+
+    const passwordMatches = await comparePassword(dto.currentPassword, user.password);
+    if (!passwordMatches) throw new UnauthorizedError("Current password is incorrect");
+
+    const isTotpValid = /^\d{6}$/.test(dto.code) && user.mfaSecret && verifyTotp(decrypt(user.mfaSecret), dto.code);
+
+    let isRecoveryValid = false;
+    if (!isTotpValid) {
+      const codeHash = hashRecoveryCode(dto.code);
+      const match = user.mfaRecoveryCodes.find((c) => c.codeHash === codeHash && !c.used);
+      if (match) isRecoveryValid = true;
+    }
+
+    if (!isTotpValid && !isRecoveryValid) {
+      throw new UnauthorizedError("Invalid MFA code");
+    }
+
+    await userRepository.disableMfa(userId);
+
+    return { message: "Two-factor authentication disabled." };
   },
 };

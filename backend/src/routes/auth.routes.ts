@@ -17,5 +17,6 @@ router.post("/mfa/setup", protect, authController.setupMfa);
 router.post("/mfa/verify-setup", protect, authController.verifyMfaSetup);
 
 router.patch("/admin/unlock/:userId", protect, restrictTo("admin"), authController.adminUnlockAccount);
+router.post("/disable-mfa", protect, authController.disableMfa);
 
 export default router;
