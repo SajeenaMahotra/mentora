@@ -32,4 +32,26 @@ export const packageController = {
       next(err);
     }
   },
+
+  async listAll(req: Request, res: Response, next: NextFunction) {
+    try {
+      const search = req.query.search as string | undefined;
+      const category = req.query.category as string | undefined;
+      const mentor = req.query.mentor as string | undefined;
+      const data = await packageService.listAllPublic({ search, category, mentor });
+      res.status(200).json({ success: true, message: "Packages retrieved", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const packageId = req.params.id as string;
+      const data = await packageService.deletePackage(req.user!.id, packageId);
+      res.status(200).json({ success: true, message: data.message, data: null });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

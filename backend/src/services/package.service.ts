@@ -32,4 +32,17 @@ export const packageService = {
 
     return packageRepository.update(packageId, dto);
   },
+
+
+  async listAllPublic(filter: { search?: string; category?: string; mentor?: string }) {
+    return packageRepository.findAllPublic(filter);
+  },
+
+  async deletePackage(mentorId: string, packageId: string) {
+    const existing = await packageRepository.findByIdAndMentor(packageId, mentorId);
+    if (!existing) throw new ForbiddenError("Package not found or not owned by you");
+
+    await packageRepository.delete(packageId);
+    return { message: "Package deleted" };
+  },
 };
