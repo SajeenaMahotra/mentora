@@ -62,3 +62,44 @@ export async function getMyProfile() {
     return { success: false, message: err.response?.data?.message || "Failed to load profile" };
   }
 }
+
+
+export async function getPackagesAction(params?: { search?: string; category?: string; mentor?: string }) {
+  try {
+    const query = new URLSearchParams();
+    if (params?.search) query.set("search", params.search);
+    if (params?.category) query.set("category", params.category);
+    if (params?.mentor) query.set("mentor", params.mentor);
+    const res = await api.get(`${ENDPOINTS.PACKAGES}?${query.toString()}`);
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to load packages" };
+  }
+}
+
+
+export async function updatePackage(id: string, data: Partial<{
+  title: string;
+  description: string;
+  subject: string;
+  durationValue: number;
+  durationUnit: "day" | "week" | "month";
+  sessionType: "online" | "in-person" | "hybrid";
+  price: number;
+}>) {
+  try {
+    const res = await api.patch(ENDPOINTS.PACKAGE_BY_ID(id), data);
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to update package" };
+  }
+}
+
+export async function deletePackage(id: string) {
+  try {
+    await api.delete(ENDPOINTS.PACKAGE_BY_ID(id));
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to delete package" };
+  }
+}
