@@ -206,4 +206,15 @@ export const userRepository = {
       { new: true }
     );
   },
+
+  disableMfa(id: string) {
+    return User.findByIdAndUpdate(id, {
+      mfaEnabled: false,
+      $unset: { mfaSecret: 1, mfaRecoveryCodes: 1 },
+    });
+  },
+
+  findByIdWithPasswordAndMfa(id: string) {
+    return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes");
+  },
 };

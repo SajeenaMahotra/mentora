@@ -93,3 +93,9 @@ export const updateSubjectsSchema = z.object({
   subjects: z.array(z.string()).min(1, "At least one subject is required"),
 });
 export type UpdateSubjectsDto = z.infer<typeof updateSubjectsSchema>;
+
+export const disableMfaSchema = z.object({
+  currentPassword: z.string().min(1),
+  code: z.string().min(6), // TOTP or recovery code, same as login verify
+});
+export type DisableMfaDto = z.infer<typeof disableMfaSchema>;
