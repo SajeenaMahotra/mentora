@@ -7,6 +7,8 @@ import {
   updateProfile,
   updateSubjects,
   createPackage,
+  updatePackage,
+  deletePackage,
 } from "@/lib/actions/mentor";
 import { toast } from "sonner";
 
@@ -18,7 +20,7 @@ interface Category {
 interface Profile {
   fullname: string;
   bio: string | null;
-  subjects: Category[];
+  subjects: string[];
 }
 
 interface Package {
@@ -27,10 +29,20 @@ interface Package {
   description: string;
   price: number;
   durationValue: number;
-  durationUnit: string;
-  sessionType: string;
+  durationUnit: "day" | "week" | "month";
+  sessionType: "online" | "in-person" | "hybrid";
   subject: Category;
 }
+
+const emptyPkgForm = {
+  title: "",
+  description: "",
+  subject: "",
+  durationValue: "",
+  durationUnit: "week" as "day" | "week" | "month",
+  sessionType: "online" as "online" | "in-person" | "hybrid",
+  price: "",
+};
 
 export default function MentorProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -46,15 +58,19 @@ export default function MentorProfilePage() {
 
   const [showPackageForm, setShowPackageForm] = useState(false);
   const [savingPackage, setSavingPackage] = useState(false);
-  const [newPkg, setNewPkg] = useState({
-    title: "",
-    description: "",
-    subject: "",
-    durationValue: "",
-    durationUnit: "week" as "day" | "week" | "month",
-    sessionType: "online" as "online" | "in-person" | "hybrid",
-    price: "",
-  });
+  const [newPkg, setNewPkg] = useState(emptyPkgForm);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editPkg, setEditPkg] = useState(emptyPkgForm);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const refreshPackages = async () => {
+    const res = await getMyPackages();
+    if (res.success) setPackages(res.data || []);
+  };
 
   useEffect(() => {
     Promise.all([getMyProfile(), getMyPackages(), getCategories()]).then(
@@ -62,7 +78,7 @@ export default function MentorProfilePage() {
         if (profileRes.success) {
           setProfile(profileRes.data);
           setBio(profileRes.data.bio || "");
-          setSelectedSubjects((profileRes.data.subjects || []).map((s: Category) => s._id));
+          setSelectedSubjects(profileRes.data.subjects || []);
         } else toast.error(profileRes.message);
 
         if (packagesRes.success) setPackages(packagesRes.data || []);
@@ -117,20 +133,67 @@ export default function MentorProfilePage() {
     });
     if (res.success) {
       toast.success("Package created");
-      const refreshed = await getMyPackages();
-      if (refreshed.success) setPackages(refreshed.data || []);
+      await refreshPackages();
       setShowPackageForm(false);
-      setNewPkg({
-        title: "",
-        description: "",
-        subject: "",
-        durationValue: "",
-        durationUnit: "week",
-        sessionType: "online",
-        price: "",
-      });
+      setNewPkg(emptyPkgForm);
     } else toast.error(res.message);
     setSavingPackage(false);
+  };
+
+  const startEdit = (p: Package) => {
+    setEditingId(p._id);
+    setEditPkg({
+      title: p.title,
+      description: p.description,
+      subject: p.subject?._id || "",
+      durationValue: String(p.durationValue),
+      durationUnit: p.durationUnit,
+      sessionType: p.sessionType,
+      price: String(p.price),
+    });
+    setShowPackageForm(false);
+    setConfirmDeleteId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditPkg(emptyPkgForm);
+  };
+
+  const updateEditPkg = (k: string, v: string) => setEditPkg((f) => ({ ...f, [k]: v }));
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    if (!editPkg.title || !editPkg.description || !editPkg.subject || !editPkg.durationValue || !editPkg.price) {
+      return toast.error("Please complete all fields");
+    }
+    setSavingEdit(true);
+    const res = await updatePackage(editingId, {
+      title: editPkg.title,
+      description: editPkg.description,
+      subject: editPkg.subject,
+      durationValue: Number(editPkg.durationValue),
+      durationUnit: editPkg.durationUnit,
+      sessionType: editPkg.sessionType,
+      price: Number(editPkg.price),
+    });
+    if (res.success) {
+      toast.success("Package updated");
+      await refreshPackages();
+      cancelEdit();
+    } else toast.error(res.message);
+    setSavingEdit(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(true);
+    const res = await deletePackage(id);
+    if (res.success) {
+      toast.success("Package deleted");
+      await refreshPackages();
+      setConfirmDeleteId(null);
+    } else toast.error(res.message);
+    setDeleting(false);
   };
 
   if (loading) {
@@ -140,6 +203,80 @@ export default function MentorProfilePage() {
       </div>
     );
   }
+
+  const packageFormFields = (
+    values: typeof emptyPkgForm,
+    update: (k: string, v: string) => void
+  ) => (
+    <div className="space-y-3">
+      <input
+        type="text"
+        value={values.title}
+        onChange={(e) => update("title", e.target.value)}
+        placeholder="Title"
+        className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+      />
+      <textarea
+        value={values.description}
+        onChange={(e) => update("description", e.target.value)}
+        placeholder="Description"
+        rows={2}
+        className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent resize-none transition"
+      />
+      <select
+        value={values.subject}
+        onChange={(e) => update("subject", e.target.value)}
+        className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+      >
+        <option value="">Select a subject</option>
+        {categories
+          .filter((c) => selectedSubjects.includes(c._id))
+          .map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
+          ))}
+      </select>
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          type="number"
+          min="1"
+          value={values.durationValue}
+          onChange={(e) => update("durationValue", e.target.value)}
+          placeholder="Duration"
+          className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+        />
+        <select
+          value={values.durationUnit}
+          onChange={(e) => update("durationUnit", e.target.value)}
+          className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+        >
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+        </select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <select
+          value={values.sessionType}
+          onChange={(e) => update("sessionType", e.target.value)}
+          className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+        >
+          <option value="online">Online</option>
+          <option value="in-person">In-person</option>
+          <option value="hybrid">Hybrid</option>
+        </select>
+        <input
+          type="number"
+          min="0"
+          value={values.price}
+          onChange={(e) => update("price", e.target.value)}
+          placeholder="Price (NPR)"
+          className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-6">
@@ -204,7 +341,10 @@ export default function MentorProfilePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-slate-900">Your packages</h2>
           <button
-            onClick={() => setShowPackageForm((s) => !s)}
+            onClick={() => {
+              setShowPackageForm((s) => !s);
+              cancelEdit();
+            }}
             className="text-sm text-[#3B5EFF] font-medium hover:underline"
           >
             {showPackageForm ? "Cancel" : "+ Add package"}
@@ -216,91 +356,80 @@ export default function MentorProfilePage() {
         )}
 
         <div className="space-y-3 mb-4">
-          {packages.map((p) => (
-            <div key={p._id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-slate-900">{p.title}</p>
-                <p className="text-xs text-slate-400">
-                  {p.subject?.name} · {p.durationValue} {p.durationUnit} · {p.sessionType}
-                </p>
+          {packages.map((p) =>
+            editingId === p._id ? (
+              <div key={p._id} className="rounded-xl border border-[#3B5EFF]/30 bg-slate-50 p-4">
+                {packageFormFields(editPkg, updateEditPkg)}
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={savingEdit}
+                    className="flex-1 h-10 bg-[#3B5EFF] hover:bg-[#2f4de0] disabled:opacity-60 text-white text-sm font-medium rounded-xl transition"
+                  >
+                    {savingEdit ? "Saving..." : "Save changes"}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="h-10 px-4 text-sm font-medium text-slate-500 hover:text-slate-700 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-              <p className="text-sm font-semibold text-[#3B5EFF]">Rs {p.price}</p>
-            </div>
-          ))}
+            ) : confirmDeleteId === p._id ? (
+              <div key={p._id} className="flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-3">
+                <p className="text-sm text-red-700">Delete "{p.title}"? This cannot be undone.</p>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleDelete(p._id)}
+                    disabled={deleting}
+                    className="h-8 px-3 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-xs font-medium rounded-lg transition"
+                  >
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="h-8 px-3 text-xs font-medium text-slate-500 hover:text-slate-700 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div key={p._id} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{p.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {p.subject?.name} · {p.durationValue} {p.durationUnit} · {p.sessionType}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <p className="text-sm font-semibold text-[#3B5EFF]">Rs {p.price}</p>
+                  <button
+                    onClick={() => startEdit(p)}
+                    className="text-xs font-medium text-slate-500 hover:text-[#3B5EFF] transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(p._id)}
+                    className="text-xs font-medium text-slate-500 hover:text-red-600 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {showPackageForm && (
-          <div className="border-t border-slate-100 pt-4 space-y-3">
-            <input
-              type="text"
-              value={newPkg.title}
-              onChange={(e) => updateNewPkg("title", e.target.value)}
-              placeholder="Title"
-              className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-            />
-            <textarea
-              value={newPkg.description}
-              onChange={(e) => updateNewPkg("description", e.target.value)}
-              placeholder="Description"
-              rows={2}
-              className="w-full px-3.5 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent resize-none transition"
-            />
-            <select
-              value={newPkg.subject}
-              onChange={(e) => updateNewPkg("subject", e.target.value)}
-              className="w-full h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-            >
-              <option value="">Select a subject</option>
-              {categories
-                .filter((c) => selectedSubjects.includes(c._id))
-                .map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                min="1"
-                value={newPkg.durationValue}
-                onChange={(e) => updateNewPkg("durationValue", e.target.value)}
-                placeholder="Duration"
-                className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-              />
-              <select
-                value={newPkg.durationUnit}
-                onChange={(e) => updateNewPkg("durationUnit", e.target.value)}
-                className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-              >
-                <option value="day">Day</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                value={newPkg.sessionType}
-                onChange={(e) => updateNewPkg("sessionType", e.target.value)}
-                className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-              >
-                <option value="online">Online</option>
-                <option value="in-person">In-person</option>
-                <option value="hybrid">Hybrid</option>
-              </select>
-              <input
-                type="number"
-                min="0"
-                value={newPkg.price}
-                onChange={(e) => updateNewPkg("price", e.target.value)}
-                placeholder="Price (NPR)"
-                className="h-11 px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#3B5EFF] focus:border-transparent transition"
-              />
-            </div>
+          <div className="border-t border-slate-100 pt-4">
+            {packageFormFields(newPkg, updateNewPkg)}
             <button
               onClick={handleCreatePackage}
               disabled={savingPackage}
-              className="w-full h-11 bg-[#3B5EFF] hover:bg-[#2f4de0] disabled:opacity-60 text-white text-sm font-medium rounded-xl transition"
+              className="w-full h-11 mt-3 bg-[#3B5EFF] hover:bg-[#2f4de0] disabled:opacity-60 text-white text-sm font-medium rounded-xl transition"
             >
               {savingPackage ? "Creating..." : "Create package"}
             </button>
