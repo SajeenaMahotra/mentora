@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getBookingsForLearnerAction, cancelBookingAction } from "@/lib/actions/booking";
+import { getBookingsForLearnerAction, cancelBookingAction, checkoutBookingAction } from "@/lib/actions/booking";
 import { toast } from "sonner";
 import { Calendar, Package as PackageIcon } from "lucide-react";
 import StatusBadge from "../../../components/StatusBadge";
@@ -10,7 +10,7 @@ interface Booking {
   packageTitle: string;
   packagePrice: number;
   sessionType: string;
-  status: "pending" | "accepted" | "declined" | "cancelled";
+  status: "pending" | "accepted" | "declined" | "cancelled" | "paid";
   createdAt: string;
   mentor?: { _id: string; fullname: string; profilePhoto?: string | null };
 }
@@ -21,6 +21,7 @@ const TABS = [
   { key: "accepted", label: "Accepted" },
   { key: "declined", label: "Declined" },
   { key: "cancelled", label: "Cancelled" },
+  { key: "paid", label: "Paid" },
 ] as const;
 
 export default function BookingsPage() {
@@ -48,6 +49,15 @@ export default function BookingsPage() {
       setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, status: "cancelled" } : b)));
     } else {
       toast.error(res.message);
+    }
+  };
+
+  const handlePay = async (id: string) => {
+    const res = await checkoutBookingAction(id);
+    if (res.success && res.data?.checkoutUrl) {
+      window.location.href = res.data.checkoutUrl;
+    } else {
+      toast.error(res.message || "Failed to start payment");
     }
   };
 
@@ -109,6 +119,14 @@ export default function BookingsPage() {
                   {b.status === "pending" && (
                     <button onClick={() => handleCancel(b._id)} className="text-xs text-red-500 hover:underline">
                       Cancel
+                    </button>
+                  )}
+                  {b.status === "accepted" && (
+                    <button
+                      onClick={() => handlePay(b._id)}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                    >
+                      Pay Now
                     </button>
                   )}
                 </div>

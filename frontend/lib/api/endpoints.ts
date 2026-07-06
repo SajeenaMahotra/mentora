@@ -45,4 +45,5 @@ export const ENDPOINTS = {
   BOOKING_ACCEPT: (id: string) => `/bookings/${id}/accept`,
   BOOKING_DECLINE: (id: string) => `/bookings/${id}/decline`,
   BOOKING_CANCEL: (id: string) => `/bookings/${id}/cancel`,
+  BOOKING_CHECKOUT: (id: string) => `/bookings/${id}/checkout`,
 };

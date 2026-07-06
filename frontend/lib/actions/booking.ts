@@ -62,3 +62,12 @@ export async function cancelBookingAction(id: string) {
     return { success: false, message: err.response?.data?.message || "Failed to cancel booking" };
   }
 }
+
+export async function checkoutBookingAction(id: string) {
+  try {
+    const res = await api.post(ENDPOINTS.BOOKING_CHECKOUT(id));
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to start checkout" };
+  }
+}
