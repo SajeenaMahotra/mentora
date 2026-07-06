@@ -62,4 +62,15 @@ export const bookingController = {
       next(err);
     }
   },
+
+
+  async checkout(req: Request, res: Response, next: NextFunction) {
+  try {
+    const bookingId = req.params.id as string;
+    const data = await bookingService.createCheckoutSession(req.user!.id, bookingId);
+    res.status(200).json({ success: true, message: "Checkout session created", data });
+  } catch (err) {
+    next(err);
+  }
+},
 };

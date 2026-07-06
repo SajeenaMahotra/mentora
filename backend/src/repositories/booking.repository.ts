@@ -89,4 +89,12 @@ export const bookingRepository = {
       { new: true }
     );
   },
+
+  markAsPaid(id: string, paymentIntentId: string) {
+  return Booking.findByIdAndUpdate(
+    id,
+    { status: "paid", stripePaymentIntentId: paymentIntentId, paidAt: new Date() },
+    { new: true }
+  );
+},
 };

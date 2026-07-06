@@ -2,6 +2,7 @@ import { bookingRepository } from "../repositories/booking.repository";
 import { packageRepository } from "../repositories/package.repository";
 import { CreateBookingDto, ListBookingsQueryDto } from "../dtos/booking.dto";
 import { NotFoundError, ForbiddenError, ValidationError } from "../errors/AppError";
+import { stripeClient } from "../../src/utils/stripe.util";
 
 export const bookingService = {
   async createBooking(learnerId: string, dto: CreateBookingDto) {
@@ -62,5 +63,40 @@ export const bookingService = {
     }
 
     return bookingRepository.cancel(bookingId);
+  },
+
+
+  async createCheckoutSession(learnerId: string, bookingId: string) {
+    const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
+    if (!booking) throw new NotFoundError("Booking not found");
+
+    if (booking.status !== "accepted") {
+      throw new ValidationError("Only accepted bookings can be paid for");
+    }
+
+    const session = await stripeClient.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "npr",
+            product_data: { name: booking.packageTitle },
+            unit_amount: Math.round(booking.packagePrice * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${process.env.CLIENT_URL}/bookings?payment=success`,
+      cancel_url: `${process.env.CLIENT_URL}/bookings?payment=cancelled`,
+      metadata: {
+        bookingId: booking.id,
+      },
+    });
+
+    booking.stripeSessionId = session.id;
+    await booking.save();
+
+    return { checkoutUrl: session.url };
   },
 };
