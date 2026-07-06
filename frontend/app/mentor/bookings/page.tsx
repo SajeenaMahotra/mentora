@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { getBookingsForMentorAction, acceptBookingAction, declineBookingAction } from "@/lib/actions/booking";
+import { getBookingsForMentorAction, acceptBookingAction, declineBookingAction, markCompleteAction } from "@/lib/actions/booking";
 import { toast } from "sonner";
 import { Calendar, Package as PackageIcon, Check, X } from "lucide-react";
 import StatusBadge from "../../../components/StatusBadge";
@@ -11,7 +11,7 @@ interface Booking {
   packageTitle: string;
   packagePrice: number;
   sessionType: string;
-  status: "pending" | "accepted" | "declined" | "cancelled";
+  status: "pending" | "accepted" | "declined" | "cancelled" | "paid" | "completed";
   createdAt: string;
   learner?: { _id: string; fullname: string; profilePhoto?: string | null };
 }
@@ -21,6 +21,8 @@ const TABS = [
   { key: "pending", label: "Pending" },
   { key: "accepted", label: "Accepted" },
   { key: "declined", label: "Declined" },
+  { key: "paid", label: "Paid" },
+  { key: "completed", label: "Completed" },
 ] as const;
 
 export default function MentorBookingsPage() {
@@ -61,6 +63,18 @@ export default function MentorBookingsPage() {
     if (res.success) {
       toast.success("Booking declined");
       setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, status: "declined" } : b)));
+    } else {
+      toast.error(res.message);
+    }
+  };
+
+  const handleMarkComplete = async (id: string) => {
+    setActingOn(id);
+    const res = await markCompleteAction(id);
+    setActingOn(null);
+    if (res.success) {
+      toast.success("Marked as completed");
+      setBookings((prev) => prev.map((b) => (b._id === id ? { ...b, status: "completed" } : b)));
     } else {
       toast.error(res.message);
     }
@@ -129,13 +143,22 @@ export default function MentorBookingsPage() {
                     />
                     {b.status === "pending" && (
                       <>
-                        <button onClick={() => handleDecline(b._id)} className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition">
+                        <button onClick={() => handleDecline(b._id)} disabled={isActing} className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition">
                           <X size={12} /> Decline
                         </button>
-                        <button onClick={() => handleAccept(b._id)} className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition">
+                        <button onClick={() => handleAccept(b._id)} disabled={isActing} className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition">
                           <Check size={12} /> Accept
                         </button>
                       </>
+                    )}
+                    {b.status === "paid" && (
+                      <button
+                        onClick={() => handleMarkComplete(b._id)}
+                        disabled={isActing}
+                        className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition"
+                      >
+                        <Check size={12} /> Mark Complete
+                      </button>
                     )}
                   </div>
                 </div>

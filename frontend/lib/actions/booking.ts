@@ -71,3 +71,12 @@ export async function checkoutBookingAction(id: string) {
     return { success: false, message: err.response?.data?.message || "Failed to start checkout" };
   }
 }
+
+export async function markCompleteAction(id: string) {
+  try {
+    const res = await api.patch(ENDPOINTS.BOOKING_COMPLETE(id));
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to mark as completed" };
+  }
+}

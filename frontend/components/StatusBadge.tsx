@@ -8,6 +8,7 @@ const STATUS_STYLES: Record<string, string> = {
   declined: "bg-red-50 text-red-700 border-red-200",
   cancelled: "bg-slate-50 text-slate-500 border-slate-200",
   paid: "bg-blue-50 text-blue-700 border-blue-200",
+  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 export default function StatusBadge({ status }: StatusBadgeProps) {
