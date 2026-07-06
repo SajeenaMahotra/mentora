@@ -101,13 +101,28 @@ export const bookingService = {
   },
 
   async markAsCompleted(mentorId: string, bookingId: string) {
-  const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
-  if (!booking) throw new NotFoundError("Booking not found");
+    const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
+    if (!booking) throw new NotFoundError("Booking not found");
 
-  if (booking.status !== "paid") {
-    throw new ValidationError("Only paid bookings can be marked as completed");
-  }
+    if (booking.status !== "paid") {
+      throw new ValidationError("Only paid bookings can be marked as completed");
+    }
 
-  return bookingRepository.markAsCompleted(bookingId);
-},
+    return bookingRepository.markAsCompleted(bookingId);
+  },
+
+  async raiseDispute(learnerId: string, bookingId: string, reason: string) {
+    const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
+    if (!booking) throw new NotFoundError("Booking not found");
+
+    if (booking.status !== "completed") {
+      throw new ValidationError("Only completed bookings can be disputed");
+    }
+
+    if (!booking.disputeDeadline || new Date() > booking.disputeDeadline) {
+      throw new ValidationError("The dispute window for this booking has closed");
+    }
+
+    return bookingRepository.markAsDisputed(bookingId, reason);
+  },
 };

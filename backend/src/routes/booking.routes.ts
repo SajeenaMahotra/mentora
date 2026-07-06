@@ -15,5 +15,6 @@ router.get("/mentor", restrictTo("mentor"), bookingController.listForMentor);
 router.patch("/:id/accept", restrictTo("mentor"), bookingController.accept);
 router.patch("/:id/decline", restrictTo("mentor"), bookingController.decline);
 router.patch("/:id/complete", restrictTo("mentor"), bookingController.markComplete);
+router.post("/:id/dispute", restrictTo("learner"), bookingController.dispute);
 
 export default router;

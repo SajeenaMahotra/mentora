@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { createBookingSchema, listBookingsQuerySchema } from "../dtos/booking.dto";
+import { createBookingSchema, listBookingsQuerySchema, raiseDisputeSchema } from "../dtos/booking.dto";
 import { bookingService } from "../services/booking.service";
 
 export const bookingController = {
@@ -84,4 +84,17 @@ export const bookingController = {
       next(err);
     }
   },
+
+
+
+  async dispute(req: Request, res: Response, next: NextFunction) {
+  try {
+    const bookingId = req.params.id as string;
+    const dto = raiseDisputeSchema.parse(req.body);
+    const data = await bookingService.raiseDispute(req.user!.id, bookingId, dto.reason);
+    res.status(200).json({ success: true, message: "Dispute raised", data });
+  } catch (err) {
+    next(err);
+  }
+},
 };

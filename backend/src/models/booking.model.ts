@@ -1,7 +1,7 @@
 import { Schema, model, Document, Types } from "mongoose";
 
 export type SessionType = "online" | "in-person" | "hybrid";
-export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled" | "paid" | "completed";
+export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled" | "paid" | "completed" | "disputed";
 
 export interface IBooking extends Document {
   learner: Types.ObjectId; // ref User
@@ -26,6 +26,9 @@ export interface IBooking extends Document {
 
   completedAt?: Date;
   disputeDeadline?: Date; // completedAt + 3 days
+
+  disputeReason?: string;
+  disputedAt?: Date;
 }
 
 const bookingSchema = new Schema<IBooking>(
@@ -40,13 +43,15 @@ const bookingSchema = new Schema<IBooking>(
 
     status: {
       type: String,
-      enum: ["pending", "accepted", "declined", "cancelled", "paid", "completed"],
+       enum: ["pending", "accepted", "declined", "cancelled", "paid", "completed", "disputed"],
       default: "pending",
       index: true,
     },
     respondedAt: { type: Date },
     completedAt: { type: Date },
     disputeDeadline: { type: Date },
+    disputeReason: { type: String, maxlength: 1000 },
+    disputedAt: { type: Date },
 
     stripeSessionId: { type: String },
     stripePaymentIntentId: { type: String },

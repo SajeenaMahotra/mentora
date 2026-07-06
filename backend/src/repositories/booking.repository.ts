@@ -108,4 +108,14 @@ export const bookingRepository = {
       { new: true }
     );
   },
+
+
+
+  markAsDisputed(id: string, reason: string) {
+  return Booking.findByIdAndUpdate(
+    id,
+    { status: "disputed", disputeReason: reason, disputedAt: new Date() },
+    { new: true }
+  );
+},
 };

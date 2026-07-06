@@ -11,8 +11,13 @@ export const createBookingSchema = z.object({
 export type CreateBookingDto = z.infer<typeof createBookingSchema>;
 
 export const listBookingsQuerySchema = z.object({
-  status: z.enum(["pending", "accepted", "declined", "cancelled", "paid", "completed"]).optional(),
+  status: z.enum(["pending", "accepted", "declined", "cancelled", "paid", "completed", "disputed"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(10),
 });
 export type ListBookingsQueryDto = z.infer<typeof listBookingsQuerySchema>;
+
+export const raiseDisputeSchema = z.object({
+  reason: z.string().trim().min(10).max(1000),
+});
+export type RaiseDisputeDto = z.infer<typeof raiseDisputeSchema>;
