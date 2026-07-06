@@ -17,12 +17,12 @@ import categoryRoutes from "./routes/category.routes";
 import adminRoutes from "./routes/admin.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import bookingRoutes from "./routes/booking.routes";
+import { stripeWebhook } from "./controllers/webhook.controller";
 
 export function createApp(): Application {
   const app = express();
 
   app.set("trust proxy", 1);
-
 
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), {
     maxAge: "1d",
@@ -46,6 +46,9 @@ export function createApp(): Application {
     })
   );
 
+  // --- Stripe webhook: MUST come before express.json(), needs raw body for signature verification ---
+  app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhook);
+
   app.use(express.json({ limit: "10kb" }));
   app.use(express.urlencoded({ extended: true, limit: "10kb" }));
   app.use(cookieParser(env.COOKIE_SECRET));
@@ -65,7 +68,6 @@ export function createApp(): Application {
     })
   );
 
-  // --- Request logging (method + path only, no bodies/sensitive data) ---
   app.use((req, _res, next) => {
     logger.debug(`${req.method} ${req.path}`, { ip: req.ip });
     next();
@@ -75,7 +77,6 @@ export function createApp(): Application {
     res.status(200).json({ success: true, message: "Mentora API is running" });
   });
 
-  // Feature routes
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/packages", packageRoutes);
@@ -83,8 +84,6 @@ export function createApp(): Application {
   app.use("/api/admin", adminRoutes);
   app.use("/api/conversations", conversationRoutes);
   app.use("/api/bookings", bookingRoutes);
-
-
 
   app.use(notFoundHandler);
   app.use(errorHandler);
