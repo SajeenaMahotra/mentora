@@ -1,0 +1,65 @@
+import { Request, Response, NextFunction } from "express";
+import { createBookingSchema, listBookingsQuerySchema } from "../dtos/booking.dto";
+import { bookingService } from "../services/booking.service";
+
+export const bookingController = {
+  async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = createBookingSchema.parse(req.body);
+      const data = await bookingService.createBooking(req.user!.id, dto);
+      res.status(201).json({ success: true, message: "Booking request sent", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async listForMentor(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = listBookingsQuerySchema.parse(req.query);
+      const data = await bookingService.listForMentor(req.user!.id, query);
+      res.status(200).json({ success: true, message: "Bookings retrieved", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async listForLearner(req: Request, res: Response, next: NextFunction) {
+    try {
+      const query = listBookingsQuerySchema.parse(req.query);
+      const data = await bookingService.listForLearner(req.user!.id, query);
+      res.status(200).json({ success: true, message: "Bookings retrieved", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async accept(req: Request, res: Response, next: NextFunction) {
+    try {
+      const bookingId = req.params.id as string;
+      const data = await bookingService.acceptBooking(req.user!.id, bookingId);
+      res.status(200).json({ success: true, message: "Booking accepted", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async decline(req: Request, res: Response, next: NextFunction) {
+    try {
+      const bookingId = req.params.id as string;
+      const data = await bookingService.declineBooking(req.user!.id, bookingId);
+      res.status(200).json({ success: true, message: "Booking declined", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async cancel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const bookingId = req.params.id as string;
+      const data = await bookingService.cancelBooking(req.user!.id, bookingId);
+      res.status(200).json({ success: true, message: "Booking cancelled", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+};

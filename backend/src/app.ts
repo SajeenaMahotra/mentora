@@ -16,6 +16,7 @@ import packageRoutes from "./routes/package.routes";
 import categoryRoutes from "./routes/category.routes";
 import adminRoutes from "./routes/admin.routes";
 import conversationRoutes from "./routes/conversation.routes";
+import bookingRoutes from "./routes/booking.routes";
 
 export function createApp(): Application {
   const app = express();
@@ -81,6 +82,8 @@ export function createApp(): Application {
   app.use("/api/categories", categoryRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/conversations", conversationRoutes);
+  app.use("/api/bookings", bookingRoutes);
+
 
 
   app.use(notFoundHandler);
