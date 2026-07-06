@@ -36,8 +36,11 @@ export const bookingRepository = {
   },
 
   async findAllByMentor(mentorId: string, filter: ListFilter) {
-    const query: Record<string, any> = { mentor: new Types.ObjectId(mentorId) };
-    if (filter.status) query.status = filter.status;
+    const query: Record<string, any> = {
+      mentor: new Types.ObjectId(mentorId),
+      status: { $ne: "cancelled" }, // learner-cancelled bookings are invisible to mentor
+    };
+    if (filter.status && filter.status !== "cancelled") query.status = filter.status;
 
     const skip = (filter.page - 1) * filter.limit;
 

@@ -6,7 +6,7 @@ const router = Router();
 
 router.use(protect);
 
-router.post("/", restrictTo("learner"), startConversation);
+router.post("/", restrictTo("learner", "mentor"), startConversation);
 router.get("/", listConversations);
 router.get("/:id/messages", getMessages);
 

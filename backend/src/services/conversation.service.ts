@@ -10,25 +10,31 @@ export const conversationService = {
   // Learner-only. Route already applies restrictTo("learner"), but this
   // check is repeated here because the socket layer has no route
   // middleware to rely on — defense in depth per assignment requirement.
-  async startConversation(learnerId: string, mentorId: string): Promise<IConversation> {
-    if (learnerId === mentorId) {
+  async startConversation(userId: string, targetId: string): Promise<IConversation> {
+    if (userId === targetId) {
       throw new ValidationError("You cannot message yourself");
     }
 
-    const learner = await userRepository.findById(learnerId);
-    if (!learner || learner.isDeleted) {
-      throw new NotFoundError("Learner account not found");
-    }
-    if (learner.role !== "learner") {
-      throw new ForbiddenError("Only learners can start a conversation");
+    const user = await userRepository.findById(userId);
+    if (!user || user.isDeleted) {
+      throw new NotFoundError("Account not found");
     }
 
-    const mentor = await userRepository.findById(mentorId);
-    if (!mentor || mentor.isDeleted) {
-      throw new NotFoundError("Mentor not found");
+    const target = await userRepository.findById(targetId);
+    if (!target || target.isDeleted) {
+      throw new NotFoundError("User not found");
     }
-    if (mentor.role !== "mentor") {
-      throw new ValidationError("Target user is not a mentor");
+
+    // one side must be learner, the other mentor — figure out which is which
+    let learnerId: string, mentorId: string;
+    if (user.role === "learner" && target.role === "mentor") {
+      learnerId = userId;
+      mentorId = targetId;
+    } else if (user.role === "mentor" && target.role === "learner") {
+      learnerId = targetId;
+      mentorId = userId;
+    } else {
+      throw new ForbiddenError("Conversations can only happen between a learner and a mentor");
     }
 
     return conversationRepository.findOrCreate(learnerId, mentorId);
