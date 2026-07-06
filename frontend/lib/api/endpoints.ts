@@ -37,4 +37,12 @@ export const ENDPOINTS = {
     before
       ? `/conversations/${id}/messages?before=${before}`
       : `/conversations/${id}/messages`,
+
+  // Bookings
+  BOOKINGS: "/bookings",
+  BOOKINGS_MENTOR: "/bookings/mentor",
+  BOOKINGS_LEARNER: "/bookings/learner",
+  BOOKING_ACCEPT: (id: string) => `/bookings/${id}/accept`,
+  BOOKING_DECLINE: (id: string) => `/bookings/${id}/decline`,
+  BOOKING_CANCEL: (id: string) => `/bookings/${id}/cancel`,
 };
