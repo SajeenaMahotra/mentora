@@ -26,6 +26,10 @@ export const ENDPOINTS = {
   ADMIN_USERS: "/admin/users",
   ADMIN_USER_STATUS: (id: string) => `/admin/users/${id}/status`,
   ADMIN_USER_DELETE: (id: string) => `/admin/users/${id}`,
+  // Admin — disputes
+  ADMIN_DISPUTES: "/admin/disputes",
+  ADMIN_DISPUTE_REFUND: (id: string) => `/admin/disputes/${id}/refund`,
+  ADMIN_DISPUTE_REJECT: (id: string) => `/admin/disputes/${id}/reject`,
 
   // Categories
   CATEGORIES: "/categories",

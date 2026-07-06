@@ -4,7 +4,7 @@ import { useAuth } from "@/context/authContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Users, FolderKanban, LogOut } from "lucide-react";
+import { Users, FolderKanban, LogOut, AlertTriangle } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/categories", label: "Categories", icon: FolderKanban },
+    { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
   ];
 
   return (

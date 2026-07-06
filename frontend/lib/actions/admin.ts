@@ -72,3 +72,36 @@ export async function deleteCategoryAction(id: string) {
     return { success: false, message: err.response?.data?.message || "Failed to delete category" };
   }
 }
+
+
+interface ListDisputesParams {
+  page?: number;
+  limit?: number;
+}
+
+export async function getAdminDisputesAction(params: ListDisputesParams = {}) {
+  try {
+    const res = await api.get(ENDPOINTS.ADMIN_DISPUTES, { params });
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to load disputes" };
+  }
+}
+
+export async function refundDisputeAction(id: string) {
+  try {
+    const res = await api.patch(ENDPOINTS.ADMIN_DISPUTE_REFUND(id));
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to refund" };
+  }
+}
+
+export async function rejectDisputeAction(id: string) {
+  try {
+    const res = await api.patch(ENDPOINTS.ADMIN_DISPUTE_REJECT(id));
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to reject dispute" };
+  }
+}
