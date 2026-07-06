@@ -8,12 +8,22 @@ import { ConversationSummary } from "@/lib/api/chat";
 
 export default function MentorMessagesPage() {
   const [selected, setSelected] = useState<ConversationSummary | null>(null);
-  const { setActiveConversationId } = useChatContext();
+  const { setActiveConversationId, pendingOpenId, clearPendingOpen, conversations } = useChatContext();
 
   const handleSelect = (conv: ConversationSummary) => {
     setSelected(conv);
     setActiveConversationId(conv.id);
   };
+
+  useEffect(() => {
+    if (!pendingOpenId) return;
+    const conv = conversations.find((c) => c.id === pendingOpenId);
+    if (conv) {
+      setSelected(conv);
+      setActiveConversationId(conv.id);
+      clearPendingOpen();
+    }
+  }, [pendingOpenId, conversations, setActiveConversationId, clearPendingOpen]);
 
   useEffect(() => {
     return () => setActiveConversationId(null);
