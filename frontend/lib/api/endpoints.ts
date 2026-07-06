@@ -47,4 +47,5 @@ export const ENDPOINTS = {
   BOOKING_CANCEL: (id: string) => `/bookings/${id}/cancel`,
   BOOKING_CHECKOUT: (id: string) => `/bookings/${id}/checkout`,
   BOOKING_COMPLETE: (id: string) => `/bookings/${id}/complete`,
+  BOOKING_DISPUTE: (id: string) => `/bookings/${id}/dispute`,
 };
