@@ -19,6 +19,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 interface Category {
   _id: string;
@@ -127,7 +134,7 @@ export default function AdminCategoriesPage() {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50/80 text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -170,28 +177,34 @@ export default function AdminCategoriesPage() {
                       {c.slug}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex justify-end gap-2">
-                      {editingId === c._id ? (
-                        <>
-                          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => saveEdit(c._id)}>
-                            Save
+                  <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                    {editingId === c._id ? (
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => saveEdit(c._id)}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <MoreVertical size={14} />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                            Cancel
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => setPendingDelete(c)}>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => startEdit(c)}>Edit</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setPendingDelete(c)}
+                            className="text-red-600 focus:text-red-600"
+                          >
                             Delete
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </td>
                 </tr>
               ))
