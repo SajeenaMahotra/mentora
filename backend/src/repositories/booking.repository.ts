@@ -91,10 +91,21 @@ export const bookingRepository = {
   },
 
   markAsPaid(id: string, paymentIntentId: string) {
-  return Booking.findByIdAndUpdate(
-    id,
-    { status: "paid", stripePaymentIntentId: paymentIntentId, paidAt: new Date() },
-    { new: true }
-  );
-},
+    return Booking.findByIdAndUpdate(
+      id,
+      { status: "paid", stripePaymentIntentId: paymentIntentId, paidAt: new Date() },
+      { new: true }
+    );
+  },
+
+  markAsCompleted(id: string) {
+    const completedAt = new Date();
+    const disputeDeadline = new Date(completedAt.getTime() + 3 * 24 * 60 * 60 * 1000); // +3 days
+
+    return Booking.findByIdAndUpdate(
+      id,
+      { status: "completed", completedAt, disputeDeadline },
+      { new: true }
+    );
+  },
 };

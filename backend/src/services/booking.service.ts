@@ -99,4 +99,15 @@ export const bookingService = {
 
     return { checkoutUrl: session.url };
   },
+
+  async markAsCompleted(mentorId: string, bookingId: string) {
+  const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
+  if (!booking) throw new NotFoundError("Booking not found");
+
+  if (booking.status !== "paid") {
+    throw new ValidationError("Only paid bookings can be marked as completed");
+  }
+
+  return bookingRepository.markAsCompleted(bookingId);
+},
 };

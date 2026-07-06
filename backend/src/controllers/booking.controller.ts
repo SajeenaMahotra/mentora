@@ -65,12 +65,23 @@ export const bookingController = {
 
 
   async checkout(req: Request, res: Response, next: NextFunction) {
-  try {
-    const bookingId = req.params.id as string;
-    const data = await bookingService.createCheckoutSession(req.user!.id, bookingId);
-    res.status(200).json({ success: true, message: "Checkout session created", data });
-  } catch (err) {
-    next(err);
-  }
-},
+    try {
+      const bookingId = req.params.id as string;
+      const data = await bookingService.createCheckoutSession(req.user!.id, bookingId);
+      res.status(200).json({ success: true, message: "Checkout session created", data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+
+  async markComplete(req: Request, res: Response, next: NextFunction) {
+    try {
+      const bookingId = req.params.id as string;
+      const data = await bookingService.markAsCompleted(req.user!.id, bookingId);
+      res.status(200).json({ success: true, message: "Booking marked as completed", data });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

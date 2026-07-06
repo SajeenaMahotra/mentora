@@ -11,7 +11,7 @@ export const createBookingSchema = z.object({
 export type CreateBookingDto = z.infer<typeof createBookingSchema>;
 
 export const listBookingsQuerySchema = z.object({
-  status: z.enum(["pending", "accepted", "declined", "cancelled", "paid"]).optional(),
+  status: z.enum(["pending", "accepted", "declined", "cancelled", "paid", "completed"]).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(50).default(10),
 });
