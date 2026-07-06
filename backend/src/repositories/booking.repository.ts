@@ -112,10 +112,35 @@ export const bookingRepository = {
 
 
   markAsDisputed(id: string, reason: string) {
-  return Booking.findByIdAndUpdate(
-    id,
-    { status: "disputed", disputeReason: reason, disputedAt: new Date() },
-    { new: true }
-  );
+    return Booking.findByIdAndUpdate(
+      id,
+      { status: "disputed", disputeReason: reason, disputedAt: new Date() },
+      { new: true }
+    );
+  },
+
+  async findAllDisputed(filter: { page: number; limit: number }) {
+  const query: { status: BookingStatus } = { status: "disputed" };
+  const skip = (filter.page - 1) * filter.limit;
+
+  const [items, total] = await Promise.all([
+    Booking.find(query)
+      .populate("learner", "fullname profilePhoto email")
+      .populate("mentor", "fullname profilePhoto email")
+      .sort({ disputedAt: -1 })
+      .skip(skip)
+      .limit(filter.limit),
+    Booking.countDocuments(query),
+  ]);
+
+  return { items, total, page: filter.page, limit: filter.limit };
 },
+
+  resolveDisputeRefunded(id: string) {
+    return Booking.findByIdAndUpdate(id, { status: "refunded" }, { new: true });
+  },
+
+  resolveDisputeRejected(id: string) {
+    return Booking.findByIdAndUpdate(id, { status: "completed" }, { new: true });
+  },
 };

@@ -10,4 +10,8 @@ router.get("/users", adminController.listUsers);
 router.patch("/users/:id/status", adminController.updateUserStatus);
 router.delete("/users/:id", adminController.deleteUser);
 
+router.get("/disputes", adminController.listDisputes);
+router.patch("/disputes/:id/refund", adminController.resolveDisputeRefund);
+router.patch("/disputes/:id/reject", adminController.resolveDisputeReject);
+
 export default router;

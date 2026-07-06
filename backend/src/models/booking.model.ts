@@ -1,14 +1,13 @@
 import { Schema, model, Document, Types } from "mongoose";
 
 export type SessionType = "online" | "in-person" | "hybrid";
-export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled" | "paid" | "completed" | "disputed";
+export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled" | "paid" | "completed" | "disputed" | "refunded";
 
 export interface IBooking extends Document {
-  learner: Types.ObjectId; // ref User
-  mentor: Types.ObjectId; // ref User
-  package: Types.ObjectId; // ref Package
+  learner: Types.ObjectId;
+  mentor: Types.ObjectId;
+  package: Types.ObjectId;
 
-  // snapshot at booking time (package can change/be deleted later)
   packageTitle: string;
   packagePrice: number;
   sessionType: SessionType;
@@ -16,19 +15,20 @@ export interface IBooking extends Document {
   status: BookingStatus;
   respondedAt?: Date;
 
-  // payment
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
   paidAt?: Date;
 
-  createdAt: Date;
-  updatedAt: Date;
-
   completedAt?: Date;
-  disputeDeadline?: Date; // completedAt + 3 days
+  disputeDeadline?: Date;
 
   disputeReason?: string;
   disputedAt?: Date;
+
+  refundedAt?: Date;
+
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const bookingSchema = new Schema<IBooking>(
@@ -43,7 +43,7 @@ const bookingSchema = new Schema<IBooking>(
 
     status: {
       type: String,
-       enum: ["pending", "accepted", "declined", "cancelled", "paid", "completed", "disputed"],
+      enum: ["pending", "accepted", "declined", "cancelled", "paid", "completed", "disputed", "refunded"],
       default: "pending",
       index: true,
     },
@@ -52,6 +52,7 @@ const bookingSchema = new Schema<IBooking>(
     disputeDeadline: { type: Date },
     disputeReason: { type: String, maxlength: 1000 },
     disputedAt: { type: Date },
+    refundedAt: { type: Date },
 
     stripeSessionId: { type: String },
     stripePaymentIntentId: { type: String },
@@ -63,4 +64,4 @@ const bookingSchema = new Schema<IBooking>(
 bookingSchema.index({ learner: 1, status: 1 });
 bookingSchema.index({ mentor: 1, status: 1 });
 
-export default model<IBooking>("Booking", bookingSchema); 
+export default model<IBooking>("Booking", bookingSchema);

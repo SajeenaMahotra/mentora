@@ -1,6 +1,8 @@
 import { userRepository } from "../repositories/user.repository";
 import { ValidationError, ConflictError } from "../errors/AppError";
 import { AccountStatus } from "../models/user.model";
+import { bookingRepository } from "@/repositories/booking.repository";
+import { stripeClient } from "@/utils/stripe.util";
 
 interface ListUsersParams {
   page: number;
@@ -38,4 +40,35 @@ export const adminService = {
 
     return userRepository.softDelete(id);
   },
+
+  async listDisputes(params: { page: number; limit: number }) {
+  return bookingRepository.findAllDisputed(params);
+},
+
+async resolveDisputeRefund(bookingId: string) {
+  const booking = await bookingRepository.findById(bookingId);
+  if (!booking) throw new ValidationError("Booking not found");
+  if (booking.status !== "disputed") {
+    throw new ValidationError("Only disputed bookings can be refunded");
+  }
+  if (!booking.stripePaymentIntentId) {
+    throw new ValidationError("No payment record found for this booking");
+  }
+
+  await stripeClient.refunds.create({
+    payment_intent: booking.stripePaymentIntentId,
+  });
+
+  return bookingRepository.resolveDisputeRefunded(bookingId);
+},
+
+async resolveDisputeReject(bookingId: string) {
+  const booking = await bookingRepository.findById(bookingId);
+  if (!booking) throw new ValidationError("Booking not found");
+  if (booking.status !== "disputed") {
+    throw new ValidationError("Only disputed bookings can be rejected");
+  }
+
+  return bookingRepository.resolveDisputeRejected(bookingId);
+},
 };
