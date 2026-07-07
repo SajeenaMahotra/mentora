@@ -4,7 +4,7 @@ import { useAuth } from "@/context/authContext";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
-import { Users, FolderKanban, LogOut, AlertTriangle } from "lucide-react";
+import { Users, FolderKanban, LogOut, AlertTriangle, ScrollText } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -29,6 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/categories", label: "Categories", icon: FolderKanban },
     { href: "/admin/disputes", label: "Disputes", icon: AlertTriangle },
+    { href: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText },
   ];
 
   return (

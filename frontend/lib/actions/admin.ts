@@ -105,3 +105,18 @@ export async function rejectDisputeAction(id: string) {
     return { success: false, message: err.response?.data?.message || "Failed to reject dispute" };
   }
 }
+
+
+interface ListAuditLogsParams {
+  page?: number;
+  limit?: number;
+}
+
+export async function getAdminAuditLogsAction(params: ListAuditLogsParams = {}) {
+  try {
+    const res = await api.get(ENDPOINTS.ADMIN_AUDIT_LOGS, { params });
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to load audit logs" };
+  }
+}

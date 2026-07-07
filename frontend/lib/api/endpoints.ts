@@ -31,6 +31,8 @@ export const ENDPOINTS = {
   ADMIN_DISPUTE_REFUND: (id: string) => `/admin/disputes/${id}/refund`,
   ADMIN_DISPUTE_REJECT: (id: string) => `/admin/disputes/${id}/reject`,
 
+  ADMIN_AUDIT_LOGS: "/admin/audit-logs",
+
   // Categories
   CATEGORIES: "/categories",
   CATEGORY_BY_ID: (id: string) => `/categories/${id}`,
