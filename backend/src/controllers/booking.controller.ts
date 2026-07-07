@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { createBookingSchema, listBookingsQuerySchema, raiseDisputeSchema } from "../dtos/booking.dto";
 import { bookingService } from "../services/booking.service";
 
+function getContext(req: Request) {
+  return { ip: req.ip, userAgent: req.headers["user-agent"] };
+}
+
 export const bookingController = {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
@@ -36,7 +40,7 @@ export const bookingController = {
   async accept(req: Request, res: Response, next: NextFunction) {
     try {
       const bookingId = req.params.id as string;
-      const data = await bookingService.acceptBooking(req.user!.id, bookingId);
+      const data = await bookingService.acceptBooking(req.user!.id, bookingId, getContext(req));
       res.status(200).json({ success: true, message: "Booking accepted", data });
     } catch (err) {
       next(err);
@@ -46,7 +50,7 @@ export const bookingController = {
   async decline(req: Request, res: Response, next: NextFunction) {
     try {
       const bookingId = req.params.id as string;
-      const data = await bookingService.declineBooking(req.user!.id, bookingId);
+      const data = await bookingService.declineBooking(req.user!.id, bookingId, getContext(req));
       res.status(200).json({ success: true, message: "Booking declined", data });
     } catch (err) {
       next(err);
@@ -56,45 +60,41 @@ export const bookingController = {
   async cancel(req: Request, res: Response, next: NextFunction) {
     try {
       const bookingId = req.params.id as string;
-      const data = await bookingService.cancelBooking(req.user!.id, bookingId);
+      const data = await bookingService.cancelBooking(req.user!.id, bookingId, getContext(req));
       res.status(200).json({ success: true, message: "Booking cancelled", data });
     } catch (err) {
       next(err);
     }
   },
 
-
   async checkout(req: Request, res: Response, next: NextFunction) {
-    try {
-      const bookingId = req.params.id as string;
-      const data = await bookingService.createCheckoutSession(req.user!.id, bookingId);
-      res.status(200).json({ success: true, message: "Checkout session created", data });
-    } catch (err) {
-      next(err);
-    }
-  },
-
+  try {
+    const bookingId = req.params.id as string;
+    const data = await bookingService.createCheckoutSession(req.user!.id, bookingId, getContext(req));
+    res.status(200).json({ success: true, message: "Checkout session created", data });
+  } catch (err) {
+    next(err);
+  }
+},
 
   async markComplete(req: Request, res: Response, next: NextFunction) {
     try {
       const bookingId = req.params.id as string;
-      const data = await bookingService.markAsCompleted(req.user!.id, bookingId);
+      const data = await bookingService.markAsCompleted(req.user!.id, bookingId, getContext(req));
       res.status(200).json({ success: true, message: "Booking marked as completed", data });
     } catch (err) {
       next(err);
     }
   },
 
-
-
   async dispute(req: Request, res: Response, next: NextFunction) {
-  try {
-    const bookingId = req.params.id as string;
-    const dto = raiseDisputeSchema.parse(req.body);
-    const data = await bookingService.raiseDispute(req.user!.id, bookingId, dto.reason);
-    res.status(200).json({ success: true, message: "Dispute raised", data });
-  } catch (err) {
-    next(err);
-  }
-},
+    try {
+      const bookingId = req.params.id as string;
+      const dto = raiseDisputeSchema.parse(req.body);
+      const data = await bookingService.raiseDispute(req.user!.id, bookingId, dto.reason, getContext(req));
+      res.status(200).json({ success: true, message: "Dispute raised", data });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

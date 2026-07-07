@@ -3,13 +3,18 @@ import { packageRepository } from "../repositories/package.repository";
 import { CreateBookingDto, ListBookingsQueryDto } from "../dtos/booking.dto";
 import { NotFoundError, ForbiddenError, ValidationError } from "../errors/AppError";
 import { stripeClient } from "../../src/utils/stripe.util";
+import { auditLogService } from "./audit-log.service";
+
+interface RequestContext {
+  ip?: string;
+  userAgent?: string;
+}
 
 export const bookingService = {
   async createBooking(learnerId: string, dto: CreateBookingDto) {
     const pkg = await packageRepository.findById(dto.packageId);
     if (!pkg) throw new NotFoundError("Package not found");
 
-    // mentor can't book their own package
     if (pkg.mentor.toString() === learnerId) {
       throw new ForbiddenError("You cannot book your own package");
     }
@@ -32,7 +37,7 @@ export const bookingService = {
     return bookingRepository.findAllByLearner(learnerId, query);
   },
 
-  async acceptBooking(mentorId: string, bookingId: string) {
+  async acceptBooking(mentorId: string, bookingId: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -40,10 +45,21 @@ export const bookingService = {
       throw new ValidationError("Only pending bookings can be accepted");
     }
 
-    return bookingRepository.updateStatus(bookingId, "accepted");
+    const result = await bookingRepository.updateStatus(bookingId, "accepted");
+
+    await auditLogService.log({
+      actor: mentorId,
+      action: "BOOKING_ACCEPTED",
+      targetType: "Booking",
+      targetId: bookingId,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return result;
   },
 
-  async declineBooking(mentorId: string, bookingId: string) {
+  async declineBooking(mentorId: string, bookingId: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -51,10 +67,21 @@ export const bookingService = {
       throw new ValidationError("Only pending bookings can be declined");
     }
 
-    return bookingRepository.updateStatus(bookingId, "declined");
+    const result = await bookingRepository.updateStatus(bookingId, "declined");
+
+    await auditLogService.log({
+      actor: mentorId,
+      action: "BOOKING_DECLINED",
+      targetType: "Booking",
+      targetId: bookingId,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return result;
   },
 
-  async cancelBooking(learnerId: string, bookingId: string) {
+  async cancelBooking(learnerId: string, bookingId: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -62,11 +89,21 @@ export const bookingService = {
       throw new ValidationError("Only pending bookings can be cancelled");
     }
 
-    return bookingRepository.cancel(bookingId);
+    const result = await bookingRepository.cancel(bookingId);
+
+    await auditLogService.log({
+      actor: learnerId,
+      action: "BOOKING_CANCELLED",
+      targetType: "Booking",
+      targetId: bookingId,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return result;
   },
 
-
-  async createCheckoutSession(learnerId: string, bookingId: string) {
+  async createCheckoutSession(learnerId: string, bookingId: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -97,10 +134,20 @@ export const bookingService = {
     booking.stripeSessionId = session.id;
     await booking.save();
 
+    await auditLogService.log({
+      actor: learnerId,
+      action: "CHECKOUT_SESSION_CREATED",
+      targetType: "Booking",
+      targetId: bookingId,
+      metadata: { amount: booking.packagePrice },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
     return { checkoutUrl: session.url };
   },
 
-  async markAsCompleted(mentorId: string, bookingId: string) {
+  async markAsCompleted(mentorId: string, bookingId: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndMentor(bookingId, mentorId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -108,10 +155,21 @@ export const bookingService = {
       throw new ValidationError("Only paid bookings can be marked as completed");
     }
 
-    return bookingRepository.markAsCompleted(bookingId);
+    const result = await bookingRepository.markAsCompleted(bookingId);
+
+    await auditLogService.log({
+      actor: mentorId,
+      action: "BOOKING_COMPLETED",
+      targetType: "Booking",
+      targetId: bookingId,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return result;
   },
 
-  async raiseDispute(learnerId: string, bookingId: string, reason: string) {
+  async raiseDispute(learnerId: string, bookingId: string, reason: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -123,6 +181,18 @@ export const bookingService = {
       throw new ValidationError("The dispute window for this booking has closed");
     }
 
-    return bookingRepository.markAsDisputed(bookingId, reason);
+    const result = await bookingRepository.markAsDisputed(bookingId, reason);
+
+    await auditLogService.log({
+      actor: learnerId,
+      action: "DISPUTE_RAISED",
+      targetType: "Booking",
+      targetId: bookingId,
+      metadata: { reason },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return result;
   },
 };

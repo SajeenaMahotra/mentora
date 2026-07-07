@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { stripeClient } from "../utils/stripe.util";
 import { bookingRepository } from "../repositories/booking.repository";
+import { auditLogService } from "../services/audit-log.service";
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET as string;
 
@@ -20,7 +21,17 @@ export async function stripeWebhook(req: Request, res: Response) {
     const bookingId = session.metadata?.bookingId;
 
     if (bookingId && session.payment_intent) {
-      await bookingRepository.markAsPaid(bookingId, session.payment_intent as string);
+      const booking = await bookingRepository.markAsPaid(bookingId, session.payment_intent as string);
+
+      await auditLogService.log({
+        action: "PAYMENT_RECEIVED",
+        targetType: "Booking",
+        targetId: bookingId,
+        metadata: {
+          paymentIntentId: session.payment_intent,
+          amount: booking?.packagePrice,
+        },
+      });
     }
   }
 
