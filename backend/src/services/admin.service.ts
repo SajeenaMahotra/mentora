@@ -1,3 +1,4 @@
+import logger from "../config/logger";
 import { userRepository } from "../repositories/user.repository";
 import { ValidationError, ConflictError } from "../errors/AppError";
 import { AccountStatus } from "../models/user.model";
@@ -5,6 +6,7 @@ import { bookingRepository } from "../../src/repositories/booking.repository";
 import { stripeClient } from "../utils/stripe.util";
 import { auditLogService } from "./audit-log.service";
 import { auditLogRepository } from "../repositories/audit-log.repository";
+import { notificationService } from "./notification.service";
 
 interface ListUsersParams {
   page: number;
@@ -100,6 +102,34 @@ export const adminService = {
       userAgent: ctx.userAgent,
     });
 
+    try {
+      await notificationService.create({
+        recipient: booking.learner.toString(),
+        type: "dispute_resolved",
+        title: "Dispute resolved: refund issued",
+        body: `Your dispute for "${booking.packageTitle}" was resolved and a refund was issued`,
+        link: "/bookings",
+        relatedType: "Dispute",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
+    try {
+      await notificationService.create({
+        recipient: booking.mentor.toString(),
+        type: "dispute_resolved",
+        title: "Dispute resolved against you",
+        body: `The dispute for "${booking.packageTitle}" was resolved in the learner's favor; a refund was issued`,
+        link: "/mentor/bookings",
+        relatedType: "Dispute",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
     return result;
   },
 
@@ -121,11 +151,24 @@ export const adminService = {
       userAgent: ctx.userAgent,
     });
 
+    try {
+      await notificationService.create({
+        recipient: booking.learner.toString(),
+        type: "dispute_resolved",
+        title: "Dispute rejected",
+        body: `Your dispute for "${booking.packageTitle}" was reviewed and rejected`,
+        link: "/bookings",
+        relatedType: "Dispute",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
     return result;
   },
 
-
   async listAuditLogs(params: { page: number; limit: number }) {
-  return auditLogRepository.findAllPaginated(params);
-},
+    return auditLogRepository.findAllPaginated(params);
+  },
 };
