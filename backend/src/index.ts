@@ -6,6 +6,7 @@ import { connectDatabase } from "./database/connection";
 import { env } from "./config/env";
 import logger from "./config/logger";
 import { registerChatHandlers, AppServer } from "./sockets/chat.gateway";
+import { setIO } from "./sockets/io.instance";
 
 async function bootstrap() {
   await connectDatabase();
@@ -22,6 +23,7 @@ async function bootstrap() {
     maxHttpBufferSize: 1e5, // 100kb
   });
 
+  setIO(io);
   registerChatHandlers(io);
 
   const server = httpServer.listen(env.PORT, () => {
