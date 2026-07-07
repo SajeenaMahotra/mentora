@@ -45,5 +45,13 @@ export interface ServerToClientEvents {
     lastMessagePreview: string;
     senderId: string;
   }) => void;
+  notification_created: (data: {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    link?: string;
+    isRead: boolean;
+    createdAt: string;
+  }) => void;
 }
-
