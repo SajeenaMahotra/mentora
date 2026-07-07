@@ -19,11 +19,17 @@ import {
   generateRecoveryCodes,
   hashRecoveryCode,
 } from "../utils/mfa.util";
+import { auditLogService } from "./audit-log.service";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const PASSWORD_HISTORY_LIMIT = 5;
+
+interface RequestContext {
+  ip?: string;
+  userAgent?: string;
+}
 
 export const authService = {
   async register(dto: RegisterDto) {
@@ -53,17 +59,37 @@ export const authService = {
     };
   },
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByEmailWithPassword(dto.email);
     if (!user) {
+      await auditLogService.log({
+        action: "LOGIN_FAILED",
+        metadata: { email: dto.email, reason: "user_not_found" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       throw new UnauthorizedError();
     }
 
     if (user.status !== "active") {
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_FAILED",
+        metadata: { reason: "account_" + user.status },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       throw new ForbiddenError(`Account is ${user.status}`);
     }
 
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_FAILED",
+        metadata: { reason: "account_locked" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       throw new ForbiddenError("Account locked due to too many failed login attempts. Check your email to unlock, or contact an admin.");
     }
 
@@ -83,8 +109,24 @@ export const authService = {
             `This link expires in 1 hour.`
         );
 
+        await auditLogService.log({
+          actor: user.id,
+          action: "ACCOUNT_LOCKED",
+          metadata: { reason: "too_many_failed_attempts" },
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+
         throw new ForbiddenError("Account locked due to too many failed login attempts. Check your email to unlock.");
       }
+
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_FAILED",
+        metadata: { reason: "wrong_password" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
 
       throw new UnauthorizedError();
     }
@@ -97,6 +139,13 @@ export const authService = {
         tempToken: signMfaTempToken(user.id),
       };
     }
+
+    await auditLogService.log({
+      actor: user.id,
+      action: "LOGIN_SUCCESS",
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
@@ -128,7 +177,7 @@ export const authService = {
   },
 
   // Step 2: user submits a 6-digit code from their app to confirm setup and enable MFA.
-  async verifyMfaSetup(userId: string, token: string) {
+  async verifyMfaSetup(userId: string, token: string, ctx: RequestContext = {}) {
     const user = await userRepository.findByIdWithMfaSecret(userId);
     if (!user || !user.mfaSecret) throw new ValidationError("MFA setup not started");
 
@@ -140,12 +189,19 @@ export const authService = {
     const recoveryCodes = generateRecoveryCodes();
     await userRepository.enableMfa(userId, recoveryCodes.map(hashRecoveryCode));
 
+    await auditLogService.log({
+      actor: userId,
+      action: "MFA_ENABLED",
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
     // Plain codes returned ONCE — caller must show these to the user now.
     return { recoveryCodes };
   },
 
   // Step 3: completes login after mfaRequired:true — accepts either a TOTP code or a recovery code.
-  async verifyMfaLogin(dto: MfaLoginVerifyDto) {
+  async verifyMfaLogin(dto: MfaLoginVerifyDto, ctx: RequestContext = {}) {
     let payload;
     try {
       payload = verifyMfaTempToken(dto.tempToken);
@@ -171,8 +227,22 @@ export const authService = {
     }
 
     if (!isTotpValid && !isRecoveryValid) {
+      await auditLogService.log({
+        actor: user.id,
+        action: "MFA_LOGIN_FAILED",
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       throw new UnauthorizedError("Invalid MFA code");
     }
+
+    await auditLogService.log({
+      actor: user.id,
+      action: "LOGIN_SUCCESS",
+      metadata: { via: isRecoveryValid ? "recovery_code" : "totp" },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
@@ -195,14 +265,30 @@ export const authService = {
       throw new ValidationError("Invalid or expired unlock link");
     }
     await userRepository.unlockAccount(user.id);
+
+    await auditLogService.log({
+      actor: user.id,
+      action: "ACCOUNT_UNLOCKED",
+      metadata: { via: "self_service" },
+    });
+
     return { message: "Account unlocked. You can now log in." };
   },
 
   // Admin-triggered unlock (no token needed)
-  async adminUnlockAccount(userId: string) {
+  async adminUnlockAccount(userId: string, actingAdminId?: string) {
     const user = await userRepository.findById(userId);
     if (!user) throw new ValidationError("User not found");
     await userRepository.unlockAccount(userId);
+
+    await auditLogService.log({
+      actor: actingAdminId,
+      action: "ACCOUNT_UNLOCKED",
+      targetType: "User",
+      targetId: userId,
+      metadata: { via: "admin" },
+    });
+
     return { message: `Account for ${user.email} unlocked.` };
   },
 
@@ -220,12 +306,17 @@ export const authService = {
         `Reset your password here: ${process.env.CLIENT_URL}/reset-password?token=${token}\n` +
           `This link expires in 1 hour. If you didn't request this, ignore this email.`
       );
+
+      await auditLogService.log({
+        actor: user.id,
+        action: "PASSWORD_RESET_REQUESTED",
+      });
     }
 
     return { message: "If that email is registered, a reset link has been sent." };
   },
 
-  async resetPassword(dto: ResetPasswordDto) {
+  async resetPassword(dto: ResetPasswordDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByResetToken(hashToken(dto.token));
     if (!user) {
       throw new ValidationError("Invalid or expired reset link");
@@ -239,10 +330,17 @@ export const authService = {
 
     await userRepository.updatePassword(user.id, newHash, updatedHistory);
 
+    await auditLogService.log({
+      actor: user.id,
+      action: "PASSWORD_RESET",
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
     return { message: "Password reset successful. You can now log in with your new password." };
   },
 
-  async disableMfa(userId: string, dto: DisableMfaDto) {
+  async disableMfa(userId: string, dto: DisableMfaDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByIdWithPasswordAndMfa(userId);
     if (!user) throw new UnauthorizedError();
     if (!user.mfaEnabled) throw new ValidationError("MFA is not enabled");
@@ -264,6 +362,13 @@ export const authService = {
     }
 
     await userRepository.disableMfa(userId);
+
+    await auditLogService.log({
+      actor: userId,
+      action: "MFA_DISABLED",
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
 
     return { message: "Two-factor authentication disabled." };
   },

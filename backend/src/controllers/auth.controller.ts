@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema, disableMfaSchema } from "../dtos/user.dto";
 import { authService } from "../services/auth.service";
 
+function getContext(req: Request) {
+  return { ip: req.ip, userAgent: req.headers["user-agent"] };
+}
+
 export const authController = {
   async register(req: Request, res: Response, next: NextFunction) {
     try {
@@ -21,7 +25,7 @@ export const authController = {
   async login(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = loginSchema.parse(req.body);
-      const result = await authService.login(dto);
+      const result = await authService.login(dto, getContext(req));
 
       if (result.mfaRequired) {
         return res.status(200).json({
@@ -56,7 +60,7 @@ export const authController = {
   async verifyMfaSetup(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = mfaVerifySetupSchema.parse(req.body);
-      const result = await authService.verifyMfaSetup(req.user!.id, dto.token);
+      const result = await authService.verifyMfaSetup(req.user!.id, dto.token, getContext(req));
       res.status(200).json({
         success: true,
         message: "MFA enabled. Save these recovery codes somewhere safe — they won't be shown again.",
@@ -70,7 +74,7 @@ export const authController = {
   async verifyMfaLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = mfaLoginVerifySchema.parse(req.body);
-      const { token, data } = await authService.verifyMfaLogin(dto);
+      const { token, data } = await authService.verifyMfaLogin(dto, getContext(req));
       res.status(200).json({ success: true, message: "Welcome back!", data, token });
     } catch (err) {
       next(err);
@@ -91,7 +95,7 @@ export const authController = {
   async adminUnlockAccount(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = req.params.userId as string;
-      const result = await authService.adminUnlockAccount(userId);
+      const result = await authService.adminUnlockAccount(userId, req.user!.id);
       res.status(200).json({ success: true, message: result.message });
     } catch (err) {
       next(err);
@@ -111,7 +115,7 @@ export const authController = {
   async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = resetPasswordSchema.parse(req.body);
-      const result = await authService.resetPassword(dto);
+      const result = await authService.resetPassword(dto, getContext(req));
       res.status(200).json({ success: true, message: result.message });
     } catch (err) {
       next(err);
@@ -121,7 +125,7 @@ export const authController = {
   async disableMfa(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = disableMfaSchema.parse(req.body);
-      const data = await authService.disableMfa(req.user!.id, dto);
+      const data = await authService.disableMfa(req.user!.id, dto, getContext(req));
       res.status(200).json({ success: true, message: data.message, data: null });
     } catch (err) {
       next(err);
