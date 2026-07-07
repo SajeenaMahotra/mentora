@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/authContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function MentorLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -112,7 +113,12 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center justify-end border-b border-slate-200 bg-white px-6">
+          <NotificationBell />
+        </header>
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
     </div>
   );
 }

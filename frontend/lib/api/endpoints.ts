@@ -54,4 +54,10 @@ export const ENDPOINTS = {
   BOOKING_CHECKOUT: (id: string) => `/bookings/${id}/checkout`,
   BOOKING_COMPLETE: (id: string) => `/bookings/${id}/complete`,
   BOOKING_DISPUTE: (id: string) => `/bookings/${id}/dispute`,
+
+  // Notifications
+  NOTIFICATIONS: "/notifications",
+  NOTIFICATIONS_UNREAD_COUNT: "/notifications/unread-count",
+  NOTIFICATION_MARK_READ: (id: string) => `/notifications/${id}/read`,
+  NOTIFICATIONS_MARK_ALL_READ: "/notifications/read-all",
 };
