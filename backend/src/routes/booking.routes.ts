@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protect, restrictTo } from "../middlewares/auth.middleware";
 import { bookingController } from "../controllers/booking.controller";
+import { reviewController } from "../controllers/review.controller";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.patch("/:id/accept", restrictTo("mentor"), bookingController.accept);
 router.patch("/:id/decline", restrictTo("mentor"), bookingController.decline);
 router.patch("/:id/complete", restrictTo("mentor"), bookingController.markComplete);
 router.post("/:id/dispute", restrictTo("learner"), bookingController.dispute);
+router.post("/:id/review", restrictTo("learner"), reviewController.create);
 
 export default router;

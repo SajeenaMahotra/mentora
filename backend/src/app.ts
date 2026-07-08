@@ -18,6 +18,7 @@ import adminRoutes from "./routes/admin.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import bookingRoutes from "./routes/booking.routes";
 import notificationRoutes from "./routes/notification.routes";
+import reviewRoutes from "./routes/review.routes";
 import { stripeWebhook } from "./controllers/webhook.controller";
 
 export function createApp(): Application {
@@ -86,6 +87,7 @@ export function createApp(): Application {
   app.use("/api/conversations", conversationRoutes);
   app.use("/api/bookings", bookingRoutes);
   app.use("/api/notifications", notificationRoutes);
+  app.use("/api/reviews", reviewRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
