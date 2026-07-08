@@ -2,8 +2,9 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { getPackagesAction } from "@/lib/actions/mentor";
+import { getMentorReviewsAction } from "@/lib/actions/review";
 import { toast } from "sonner";
-import { ArrowLeft, Clock, Package as PackageIcon, ShieldCheck, Layers, Check } from "lucide-react";
+import { ArrowLeft, Clock, Package as PackageIcon, ShieldCheck, Layers, Check, Star } from "lucide-react";
 import MessageMentorButton from "../../../../components/MessageMentorButton";
 import BookPackageButton from "../../_components/BookPackageButton";
 
@@ -19,12 +20,39 @@ interface PackageItem {
   mentor?: { _id: string; fullname: string; profilePhoto?: string | null; bio?: string };
 }
 
+interface ReviewItem {
+  _id: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+  learner?: { _id: string; fullname: string; profilePhoto?: string | null };
+}
+
+function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          size={size}
+          className={rating >= n ? "fill-amber-400 text-amber-400" : "text-slate-200"}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function MentorDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const [packages, setPackages] = useState<PackageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<PackageItem | null>(null);
+
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [averageRating, setAverageRating] = useState(0);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   useEffect(() => {
     getPackagesAction({ mentor: id }).then(res => {
@@ -34,6 +62,17 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
         setSelected(list[0] || null);
       }
       setLoading(false);
+    });
+  }, [id]);
+
+  useEffect(() => {
+    getMentorReviewsAction(id, { page: 1, limit: 20 }).then((res) => {
+      if (res.success) {
+        setReviews(res.data?.reviews || []);
+        setAverageRating(res.data?.averageRating || 0);
+        setRatingCount(res.data?.ratingCount || 0);
+      }
+      setReviewsLoading(false);
     });
   }, [id]);
 
@@ -78,6 +117,13 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
                   <ShieldCheck size={17} className="text-indigo-500" />
                 </div>
                 <p className="text-sm text-slate-400 mt-0.5">Verified Mentor</p>
+                {ratingCount > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <StarDisplay rating={Math.round(averageRating)} size={13} />
+                    <span className="text-xs font-semibold text-slate-700">{averageRating.toFixed(1)}</span>
+                    <span className="text-xs text-slate-400">({ratingCount} review{ratingCount !== 1 ? "s" : ""})</span>
+                  </div>
+                )}
               </div>
               {mentor && (
                 <MessageMentorButton
@@ -141,6 +187,54 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
                 );
               })}
             </div>
+          </div>
+
+          {/* Reviews */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900">Reviews</h3>
+              {ratingCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <StarDisplay rating={Math.round(averageRating)} size={14} />
+                  <span className="text-sm font-semibold text-slate-700">{averageRating.toFixed(1)}</span>
+                  <span className="text-xs text-slate-400">({ratingCount})</span>
+                </div>
+              )}
+            </div>
+
+            {reviewsLoading ? (
+              <div className="space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse" />)}
+              </div>
+            ) : reviews.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-6">No reviews yet — be the first to book and share your experience.</p>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((r) => {
+                  const reviewerPhoto = r.learner?.profilePhoto
+                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${r.learner.profilePhoto}`
+                    : null;
+                  const reviewerInitials = (r.learner?.fullname || "L").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                  return (
+                    <div key={r._id} className="pb-4 border-b border-slate-50 last:border-0 last:pb-0">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs flex-shrink-0 overflow-hidden">
+                          {reviewerPhoto ? <img src={reviewerPhoto} className="w-full h-full object-cover" alt="" /> : reviewerInitials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-900">{r.learner?.fullname || "Learner"}</p>
+                            <p className="text-xs text-slate-400 flex-shrink-0">{new Date(r.createdAt).toLocaleDateString()}</p>
+                          </div>
+                          <StarDisplay rating={r.rating} size={12} />
+                          {r.comment && <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">{r.comment}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

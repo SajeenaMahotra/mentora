@@ -35,19 +35,19 @@ export const packageRepository = {
 
 
   findAllPublic(filter: { search?: string; category?: string; mentor?: string } = {}) {
-  const query: Record<string, any> = {};
-  if (filter.search) {
-    query.title = { $regex: filter.search, $options: "i" };
-  }
-  if (filter.category) {
-    query.subject = filter.category;
-  }
-  if (filter.mentor) {
-    query.mentor = filter.mentor;
-  }
-  return Package.find(query)
-    .populate("subject", "name slug")
-    .populate("mentor", "fullname profilePhoto bio")
-    .sort({ createdAt: -1 });
-},
+    const query: Record<string, any> = {};
+    if (filter.search) {
+      query.title = { $regex: filter.search, $options: "i" };
+    }
+    if (filter.category) {
+      query.subject = filter.category;
+    }
+    if (filter.mentor) {
+      query.mentor = filter.mentor;
+    }
+    return Package.find(query)
+      .populate("subject", "name slug")
+      .populate("mentor", "fullname profilePhoto bio averageRating ratingCount")
+      .sort({ createdAt: -1 });
+  },
 };
