@@ -217,4 +217,8 @@ export const userRepository = {
   findByIdWithPasswordAndMfa(id: string) {
     return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes");
   },
+
+  updateRatingStats(id: string, averageRating: number, ratingCount: number) {
+    return User.findByIdAndUpdate(id, { averageRating, ratingCount }, { new: true });
+  },
 };
