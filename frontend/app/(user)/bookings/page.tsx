@@ -1,8 +1,9 @@
 "use client";
 import { Suspense, useState, useEffect } from "react";
 import { getBookingsForLearnerAction, cancelBookingAction, checkoutBookingAction, raiseDisputeAction } from "@/lib/actions/booking";
+import { createReviewAction, getMyReviewedBookingIdsAction } from "@/lib/actions/review";
 import { toast } from "sonner";
-import { Calendar, Package as PackageIcon } from "lucide-react";
+import { Calendar, Package as PackageIcon, Star } from "lucide-react";
 import StatusBadge from "../../../components/StatusBadge";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -48,6 +49,29 @@ const TABS = [
   { key: "disputed", label: "Disputed" },
 ] as const;
 
+function StarRatingInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          className="p-0.5"
+        >
+          <Star
+            size={26}
+            className={(hover || value) >= n ? "fill-amber-400 text-amber-400" : "text-slate-300"}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function BookingsPageContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +83,12 @@ function BookingsPageContent() {
   const [disputeReason, setDisputeReason] = useState("");
   const [disputingId, setDisputingId] = useState<string | null>(null);
   const [submittingDispute, setSubmittingDispute] = useState(false);
+
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const load = (status?: string) => {
     setLoading(true);
@@ -80,6 +110,12 @@ function BookingsPageContent() {
   useEffect(() => {
     load(activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    getMyReviewedBookingIdsAction().then((res) => {
+      if (res.success) setReviewedBookingIds(new Set(res.data));
+    });
+  }, []);
 
   const handleCancel = async (id: string) => {
     const res = await cancelBookingAction(id);
@@ -118,8 +154,32 @@ function BookingsPageContent() {
     }
   };
 
+  const handleSubmitReview = async (id: string) => {
+    if (reviewRating < 1) {
+      toast.error("Please select a star rating");
+      return;
+    }
+    setSubmittingReview(true);
+    const res = await createReviewAction(id, {
+      rating: reviewRating,
+      comment: reviewComment.trim() || undefined,
+    });
+    setSubmittingReview(false);
+    if (res.success) {
+      toast.success("Review submitted, thanks!");
+      setReviewedBookingIds((prev) => new Set(prev).add(id));
+      setReviewingId(null);
+      setReviewRating(0);
+      setReviewComment("");
+    } else {
+      toast.error(res.message);
+    }
+  };
+
   const isDisputeWindowOpen = (b: Booking) =>
     b.status === "completed" && !!b.disputeDeadline && new Date() < new Date(b.disputeDeadline);
+
+  const canReview = (b: Booking) => b.status === "completed" && !reviewedBookingIds.has(b._id);
 
   const photoUrl = (photo?: string | null) =>
     photo ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${photo}` : null;
@@ -220,6 +280,50 @@ function BookingsPageContent() {
                       </DialogContent>
                     </Dialog>
                   )}
+                  {canReview(b) && (
+                    <Dialog
+                      open={reviewingId === b._id}
+                      onOpenChange={(open) => {
+                        setReviewingId(open ? b._id : null);
+                        if (!open) {
+                          setReviewRating(0);
+                          setReviewComment("");
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <button className="text-xs font-semibold px-3 py-1.5 rounded-full border border-amber-300 text-amber-600 hover:bg-amber-50 transition">
+                          Leave a Review
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Rate your session</DialogTitle>
+                          <DialogDescription>
+                            How was your session with {b.mentor?.fullname || "your mentor"} for "{b.packageTitle}"?
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-2">
+                          <StarRatingInput value={reviewRating} onChange={setReviewRating} />
+                        </div>
+                        <Textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="Optional: share more about your experience..."
+                          rows={4}
+                        />
+                        <DialogFooter>
+                          <button
+                            onClick={() => handleSubmitReview(b._id)}
+                            disabled={submittingReview}
+                            className="px-4 py-2 rounded-full bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-50 transition"
+                          >
+                            {submittingReview ? "Submitting..." : "Submit Review"}
+                          </button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               </div>
             );
@@ -243,7 +347,7 @@ function BookingsPageContent() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {paymentDialog === "success"
-                ? "Your payment has gone through. The booking is now marked as paid — you can coordinate session details with your mentor over chat."
+                ? "Your payment has gone through. The booking is now marked as paid - you can coordinate session details with your mentor over chat."
                 : "The payment was cancelled. You can try again anytime from your accepted bookings."}
             </AlertDialogDescription>
           </AlertDialogHeader>

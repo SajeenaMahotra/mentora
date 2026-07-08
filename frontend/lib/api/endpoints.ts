@@ -60,4 +60,9 @@ export const ENDPOINTS = {
   NOTIFICATIONS_UNREAD_COUNT: "/notifications/unread-count",
   NOTIFICATION_MARK_READ: (id: string) => `/notifications/${id}/read`,
   NOTIFICATIONS_MARK_ALL_READ: "/notifications/read-all",
+
+  // Reviews
+  BOOKING_REVIEW: (bookingId: string) => `/bookings/${bookingId}/review`,
+  MENTOR_REVIEWS: (mentorId: string) => `/reviews/mentor/${mentorId}`,
+  MY_REVIEWED_BOOKINGS: "/reviews/mine",
 };
