@@ -9,6 +9,7 @@ const router = Router();
 router.post("/register", authLimiter, requireCaptcha, authController.register);
 router.post("/login", authLimiter, requireCaptcha, authController.login);
 router.post("/mfa/login-verify", authLimiter, authController.verifyMfaLogin);
+router.post("/force-change-password", authLimiter, authController.forceChangePassword);
 router.post("/unlock-account", authLimiter, authController.unlockAccount);
 router.post("/forgot-password", authLimiter, authController.forgotPassword);
 router.post("/reset-password", authLimiter, authController.resetPassword);

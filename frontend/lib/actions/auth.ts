@@ -1,11 +1,12 @@
-import api from "@/lib/api/axios";
-import { ENDPOINTS } from "@/lib/api/endpoints";
+import api from "../../lib/api/axios";
+import { ENDPOINTS } from "../../lib/api/endpoints";
 
 type Role = "learner" | "mentor";
 
 interface LoginSuccess {
   success: true;
   mfaRequired?: false;
+  passwordChangeRequired?: false;
   data: {
     _id: string;
     fullname: string;
@@ -19,6 +20,14 @@ interface LoginSuccess {
 interface LoginMfaRequired {
   success: true;
   mfaRequired: true;
+  passwordChangeRequired?: false;
+  tempToken: string;
+}
+
+interface LoginPasswordChangeRequired {
+  success: true;
+  mfaRequired?: false;
+  passwordChangeRequired: true;
   tempToken: string;
 }
 
@@ -31,7 +40,7 @@ export async function loginAction(
   email: string,
   password: string,
   captchaToken: string
-): Promise<LoginSuccess | LoginMfaRequired | ActionFailure> {
+): Promise<LoginSuccess | LoginMfaRequired | LoginPasswordChangeRequired | ActionFailure> {
   try {
     const res = await api.post(ENDPOINTS.LOGIN, { email, password, captchaToken });
     return res.data;
@@ -43,9 +52,18 @@ export async function loginAction(
 export async function mfaLoginVerifyAction(tempToken: string, code: string) {
   try {
     const res = await api.post(ENDPOINTS.MFA_LOGIN_VERIFY, { tempToken, code });
-    return res.data as LoginSuccess;
+    return res.data as LoginSuccess | LoginPasswordChangeRequired;
   } catch (err: any) {
     return { success: false, message: err.response?.data?.message || "Invalid code" } as ActionFailure;
+  }
+}
+
+export async function forceChangePasswordAction(tempToken: string, password: string, confirmPassword: string) {
+  try {
+    const res = await api.post(ENDPOINTS.FORCE_CHANGE_PASSWORD, { tempToken, password, confirmPassword });
+    return res.data as LoginSuccess;
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to update password" } as ActionFailure;
   }
 }
 

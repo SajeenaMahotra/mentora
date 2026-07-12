@@ -1,4 +1,4 @@
-import { RegisterDto, LoginDto, MfaLoginVerifyDto, UnlockAccountDto, ForgotPasswordDto, ResetPasswordDto, DisableMfaDto } from "../dtos/user.dto";
+import { RegisterDto, LoginDto, MfaLoginVerifyDto, UnlockAccountDto, ForgotPasswordDto, ResetPasswordDto, DisableMfaDto, ForceChangePasswordDto } from "../dtos/user.dto";
 import { userRepository } from "../repositories/user.repository";
 import { ConflictError, UnauthorizedError, ForbiddenError, ValidationError } from "../errors/AppError";
 import {
@@ -8,7 +8,7 @@ import {
   assertNoPasswordReuse,
   buildPasswordHistoryUpdate,
 } from "../utils/password.util";
-import { signAccessToken, signMfaTempToken, verifyMfaTempToken } from "../utils/jwt.util";
+import { signAccessToken, signMfaTempToken, verifyMfaTempToken, signPasswordChangeTempToken, verifyPasswordChangeTempToken } from "../utils/jwt.util";
 import { encrypt, decrypt } from "../utils/crypto.util";
 import { generateToken, hashToken } from "../utils/token.util";
 import { sendMail } from "../utils/mailer.util";
@@ -20,6 +20,7 @@ import {
   hashRecoveryCode,
 } from "../utils/mfa.util";
 import { auditLogService } from "./audit-log.service";
+import { env } from "../config/env";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -29,6 +30,12 @@ const PASSWORD_HISTORY_LIMIT = 5;
 interface RequestContext {
   ip?: string;
   userAgent?: string;
+}
+
+// --- Password expiry check, shared by both the non-MFA and post-MFA login paths.
+function isPasswordExpired(passwordChangedAt: Date): boolean {
+  const expiryMs = env.PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - passwordChangedAt.getTime() > expiryMs;
 }
 
 export const authService = {
@@ -140,6 +147,22 @@ export const authService = {
       };
     }
 
+    // --- NEW: password expiry check (non-MFA path). Runs only after password is confirmed correct.
+    if (isPasswordExpired(user.passwordChangedAt)) {
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_BLOCKED_PASSWORD_EXPIRED",
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+
+      return {
+        mfaRequired: false,
+        passwordChangeRequired: true,
+        tempToken: signPasswordChangeTempToken(user.id),
+      };
+    }
+
     await auditLogService.log({
       actor: user.id,
       action: "LOGIN_SUCCESS",
@@ -151,6 +174,7 @@ export const authService = {
 
     return {
       mfaRequired: false,
+      passwordChangeRequired: false,
       token,
       data: {
         _id: user.id,
@@ -236,10 +260,70 @@ export const authService = {
       throw new UnauthorizedError("Invalid MFA code");
     }
 
+    // --- NEW: password expiry check (post-MFA path). Runs only after MFA is confirmed valid.
+    if (isPasswordExpired(user.passwordChangedAt)) {
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_BLOCKED_PASSWORD_EXPIRED",
+        metadata: { via: isRecoveryValid ? "recovery_code" : "totp" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+
+      return {
+        passwordChangeRequired: true,
+        tempToken: signPasswordChangeTempToken(user.id),
+      };
+    }
+
     await auditLogService.log({
       actor: user.id,
       action: "LOGIN_SUCCESS",
       metadata: { via: isRecoveryValid ? "recovery_code" : "totp" },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    const token = signAccessToken({ sub: user.id, role: user.role });
+
+    return {
+      passwordChangeRequired: false,
+      token,
+      data: {
+        _id: user.id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role,
+        isProfileSetup: user.isProfileSetup,
+      },
+    };
+  },
+
+  // --- NEW: completes login after passwordChangeRequired:true. Accepts only a new password —
+  // no "current password" needed since they already proved identity (password + MFA if enabled)
+  // to get this temp token in the first place. Logs them straight in afterward, same shape as login().
+  async forceChangePassword(dto: ForceChangePasswordDto, ctx: RequestContext = {}) {
+    let payload;
+    try {
+      payload = verifyPasswordChangeTempToken(dto.tempToken);
+    } catch {
+      throw new UnauthorizedError("Session expired, please log in again");
+    }
+
+    const user = await userRepository.findByIdWithPasswordAndMfa(payload.sub);
+    if (!user) throw new UnauthorizedError();
+
+    assertPasswordStrength(dto.password, [user.fullname, user.email]);
+    await assertNoPasswordReuse(dto.password, user.password, user.passwordHistory);
+
+    const newHash = await hashPassword(dto.password);
+    const updatedHistory = buildPasswordHistoryUpdate(user.password, user.passwordChangedAt, user.passwordHistory);
+
+    await userRepository.updatePassword(user.id, newHash, updatedHistory);
+
+    await auditLogService.log({
+      actor: user.id,
+      action: "PASSWORD_CHANGED_FORCED_EXPIRY",
       ip: ctx.ip,
       userAgent: ctx.userAgent,
     });

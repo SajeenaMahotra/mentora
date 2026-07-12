@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema, disableMfaSchema } from "../dtos/user.dto";
+import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema, disableMfaSchema, forceChangePasswordSchema } from "../dtos/user.dto";
 import { authService } from "../services/auth.service";
 
 function getContext(req: Request) {
@@ -32,6 +32,16 @@ export const authController = {
           success: true,
           message: "MFA verification required",
           mfaRequired: true,
+          tempToken: result.tempToken,
+        });
+      }
+
+      // --- NEW: password expired, block full login, hand back a temp token instead.
+      if (result.passwordChangeRequired) {
+        return res.status(200).json({
+          success: true,
+          message: "Your password has expired. Please set a new one to continue.",
+          passwordChangeRequired: true,
           tempToken: result.tempToken,
         });
       }
@@ -74,8 +84,30 @@ export const authController = {
   async verifyMfaLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = mfaLoginVerifySchema.parse(req.body);
-      const { token, data } = await authService.verifyMfaLogin(dto, getContext(req));
-      res.status(200).json({ success: true, message: "Welcome back!", data, token });
+      const result = await authService.verifyMfaLogin(dto, getContext(req));
+
+      // --- NEW: password expired after MFA succeeded, block full login, hand back a temp token.
+      if (result.passwordChangeRequired) {
+        return res.status(200).json({
+          success: true,
+          message: "Your password has expired. Please set a new one to continue.",
+          passwordChangeRequired: true,
+          tempToken: result.tempToken,
+        });
+      }
+
+      res.status(200).json({ success: true, message: "Welcome back!", data: result.data, token: result.token });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // --- NEW: final step after passwordChangeRequired:true from login or mfa/login-verify.
+  async forceChangePassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = forceChangePasswordSchema.parse(req.body);
+      const result = await authService.forceChangePassword(dto, getContext(req));
+      res.status(200).json({ success: true, message: "Password updated. Welcome back!", data: result.data, token: result.token });
     } catch (err) {
       next(err);
     }

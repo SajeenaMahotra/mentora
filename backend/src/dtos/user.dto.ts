@@ -99,3 +99,15 @@ export const disableMfaSchema = z.object({
   code: z.string().min(6), // TOTP or recovery code, same as login verify
 });
 export type DisableMfaDto = z.infer<typeof disableMfaSchema>;
+
+export const forceChangePasswordSchema = z
+  .object({
+    tempToken: z.string().min(1),
+    password: z.string().min(12).max(128),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+export type ForceChangePasswordDto = z.infer<typeof forceChangePasswordSchema>;

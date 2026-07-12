@@ -14,8 +14,8 @@ export const userRepository = {
   },
 
   findByEmailWithPassword(email: string) {
-    return User.findOne({ email }).select("+password +failedLoginAttempts +lockedUntil");
-  },
+  return User.findOne({ email }).select("+password +failedLoginAttempts +lockedUntil +passwordChangedAt");
+},
 
   findById(id: string) {
     return User.findById(id);
@@ -215,7 +215,7 @@ export const userRepository = {
   },
 
   findByIdWithPasswordAndMfa(id: string) {
-    return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes");
+    return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes +passwordHistory +passwordChangedAt");
   },
 
   updateRatingStats(id: string, averageRating: number, ratingCount: number) {

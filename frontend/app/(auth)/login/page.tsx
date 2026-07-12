@@ -58,6 +58,13 @@ export default function LoginPage() {
       return;
     }
 
+    // --- NEW: password expired, redirect to force-change-password page instead of logging in.
+    if (res.passwordChangeRequired) {
+      sessionStorage.setItem("passwordChangeTempToken", res.tempToken);
+      router.push("/force-change-password");
+      return;
+    }
+
     toast.success("Welcome back!");
     login(res.token, res.data);
   };
