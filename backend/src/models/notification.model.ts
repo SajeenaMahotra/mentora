@@ -8,16 +8,17 @@ export type NotificationType =
   | "payment_confirmed"
   | "booking_completed"
   | "dispute_raised"
-  | "dispute_resolved";
+  | "dispute_resolved"
+  | "security_alert";
 
-export type NotificationRelatedType = "Booking" | "Dispute" | "Payment";
+export type NotificationRelatedType = "Booking" | "Dispute" | "Payment" | "User";
 
 export interface INotification extends Document {
   recipient: Types.ObjectId;
   type: NotificationType;
   title: string;
   body: string;
-  link?: string; // e.g. /bookings/:id
+  link?: string;
   relatedType?: NotificationRelatedType;
   relatedId?: Types.ObjectId;
   isRead: boolean;
@@ -39,20 +40,20 @@ const notificationSchema = new Schema<INotification>(
         "booking_completed",
         "dispute_raised",
         "dispute_resolved",
+        "security_alert",
       ],
       required: true,
     },
     title: { type: String, required: true },
     body: { type: String, required: true },
     link: { type: String },
-    relatedType: { type: String, enum: ["Booking", "Dispute", "Payment"] },
+    relatedType: { type: String, enum: ["Booking", "Dispute", "Payment", "User"] },
     relatedId: { type: Schema.Types.ObjectId },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Supports both "recent notifications for user" and "unread count for user" queries
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 
 export default model<INotification>("Notification", notificationSchema);

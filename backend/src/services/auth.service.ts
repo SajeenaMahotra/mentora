@@ -22,6 +22,7 @@ import {
 import { auditLogService } from "./audit-log.service";
 import { env } from "../config/env";
 import { recordIpFailure, clearIpFailures } from "../utils/ipTracker.util";
+import { notificationService } from "./notification.service";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -70,8 +71,24 @@ export const authService = {
   async login(dto: LoginDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByEmailWithPassword(dto.email);
     if (!user) {
-      // --- NEW: track by IP — catches an attacker spraying usernames that don't even exist.
-      if (ctx.ip) recordIpFailure(ctx.ip);
+      // --- NEW: track by IP, alert admins the moment this crosses the block threshold.
+      if (ctx.ip) {
+        const justBlocked = recordIpFailure(ctx.ip);
+        if (justBlocked) {
+          await auditLogService.log({
+            action: "IP_BLOCKED",
+            metadata: { ip: ctx.ip, reason: "repeated_failed_logins" },
+            ip: ctx.ip,
+            userAgent: ctx.userAgent,
+          });
+          await notificationService.alertAdmins({
+            type: "security_alert",
+            title: "IP address blocked",
+            body: `${ctx.ip} was blocked after repeated failed login attempts across multiple accounts.`,
+            relatedType: "User",
+          });
+        }
+      }
 
       await auditLogService.log({
         action: "LOGIN_FAILED",
@@ -106,8 +123,9 @@ export const authService = {
 
     const passwordMatches = await comparePassword(dto.password, user.password);
     if (!passwordMatches) {
-      // --- NEW: track by IP on wrong-password too — this is the main brute-force signal.
-      if (ctx.ip) recordIpFailure(ctx.ip);
+      // --- NEW: track by IP, alert admins the moment this crosses the block threshold.
+      let justBlocked = false;
+      if (ctx.ip) justBlocked = recordIpFailure(ctx.ip);
 
       const updated = await userRepository.incrementFailedAttempts(user.id);
 
@@ -131,7 +149,30 @@ export const authService = {
           userAgent: ctx.userAgent,
         });
 
-        throw new ForbiddenError("Account locked due to too many failed login attempts. Check your email to unlock.");
+        // --- NEW: real-time alert to every admin the instant an account gets locked.
+        await notificationService.alertAdmins({
+          type: "security_alert",
+          title: "Account locked",
+          body: `${user.email} was locked after ${MAX_FAILED_ATTEMPTS} failed login attempts.`,
+          link: "/admin/users",
+          relatedType: "User",
+          relatedId: user.id,
+        });
+      }
+
+      if (justBlocked) {
+        await auditLogService.log({
+          action: "IP_BLOCKED",
+          metadata: { ip: ctx.ip, reason: "repeated_failed_logins" },
+          ip: ctx.ip,
+          userAgent: ctx.userAgent,
+        });
+        await notificationService.alertAdmins({
+          type: "security_alert",
+          title: "IP address blocked",
+          body: `${ctx.ip} was blocked after repeated failed login attempts across multiple accounts.`,
+          relatedType: "User",
+        });
       }
 
       await auditLogService.log({
@@ -145,7 +186,7 @@ export const authService = {
       throw new UnauthorizedError();
     }
 
-    // --- NEW: password confirmed correct — this IP just proved legitimate intent, clear its failure count.
+    // --- password confirmed correct — this IP just proved legitimate intent, clear its failure count.
     if (ctx.ip) clearIpFailures(ctx.ip);
 
     await userRepository.resetFailedAttempts(user.id);
@@ -157,7 +198,6 @@ export const authService = {
       };
     }
 
-    // --- NEW: password expiry check (non-MFA path). Runs only after password is confirmed correct.
     if (isPasswordExpired(user.passwordChangedAt)) {
       await auditLogService.log({
         actor: user.id,
@@ -196,7 +236,6 @@ export const authService = {
     };
   },
 
-  // Step 1: generate a secret for an already-authenticated user, return QR for their app.
   async setupMfa(userId: string) {
     const user = await userRepository.findById(userId);
     if (!user) throw new UnauthorizedError();
@@ -210,7 +249,6 @@ export const authService = {
     return { qrCodeDataUrl, manualEntryKey: secret.base32 };
   },
 
-  // Step 2: user submits a 6-digit code from their app to confirm setup and enable MFA.
   async verifyMfaSetup(userId: string, token: string, ctx: RequestContext = {}) {
     const user = await userRepository.findByIdWithMfaSecret(userId);
     if (!user || !user.mfaSecret) throw new ValidationError("MFA setup not started");
@@ -230,11 +268,9 @@ export const authService = {
       userAgent: ctx.userAgent,
     });
 
-    // Plain codes returned ONCE — caller must show these to the user now.
     return { recoveryCodes };
   },
 
-  // Step 3: completes login after mfaRequired:true — accepts either a TOTP code or a recovery code.
   async verifyMfaLogin(dto: MfaLoginVerifyDto, ctx: RequestContext = {}) {
     let payload;
     try {
@@ -270,7 +306,6 @@ export const authService = {
       throw new UnauthorizedError("Invalid MFA code");
     }
 
-    // --- NEW: password expiry check (post-MFA path). Runs only after MFA is confirmed valid.
     if (isPasswordExpired(user.passwordChangedAt)) {
       await auditLogService.log({
         actor: user.id,
@@ -309,9 +344,6 @@ export const authService = {
     };
   },
 
-  // --- NEW: completes login after passwordChangeRequired:true. Accepts only a new password —
-  // no "current password" needed since they already proved identity (password + MFA if enabled)
-  // to get this temp token in the first place. Logs them straight in afterward, same shape as login().
   async forceChangePassword(dto: ForceChangePasswordDto, ctx: RequestContext = {}) {
     let payload;
     try {
@@ -352,7 +384,6 @@ export const authService = {
     };
   },
 
-  // Self-service unlock via emailed token
   async unlockAccount(dto: UnlockAccountDto) {
     const user = await userRepository.findByUnlockToken(hashToken(dto.token));
     if (!user) {
@@ -369,7 +400,6 @@ export const authService = {
     return { message: "Account unlocked. You can now log in." };
   },
 
-  // Admin-triggered unlock (no token needed)
   async adminUnlockAccount(userId: string, actingAdminId?: string) {
     const user = await userRepository.findById(userId);
     if (!user) throw new ValidationError("User not found");
@@ -389,7 +419,6 @@ export const authService = {
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await userRepository.findByEmail(dto.email);
 
-    // Always return the same generic response — don't reveal whether the email exists.
     if (user) {
       const { token, tokenHash } = generateToken();
       await userRepository.setResetPasswordToken(user.id, tokenHash, new Date(Date.now() + RESET_TOKEN_TTL_MS));

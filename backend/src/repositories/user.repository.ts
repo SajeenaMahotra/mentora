@@ -221,4 +221,9 @@ export const userRepository = {
   updateRatingStats(id: string, averageRating: number, ratingCount: number) {
     return User.findByIdAndUpdate(id, { averageRating, ratingCount }, { new: true });
   },
+
+
+  findAllAdminIds() {
+  return User.find({ role: "admin", isDeleted: { $ne: true } }).select("_id").lean();
+},
 };

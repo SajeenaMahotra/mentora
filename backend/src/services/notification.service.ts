@@ -3,6 +3,7 @@ import { notificationRepository } from "../repositories/notification.repository"
 import { NotificationType, NotificationRelatedType } from "../models/notification.model";
 import { getIO, personalRoom } from "../sockets/io.instance";
 import logger from "../config/logger";
+import { userRepository } from "../repositories/user.repository";
 
 interface CreateNotificationInput {
   recipient: Types.ObjectId | string;
@@ -55,4 +56,19 @@ export const notificationService = {
   async markAllAsRead(userId: string) {
     return notificationRepository.markAllAsRead(userId);
   },
+
+
+  // --- Fans a security event out to every admin as a real-time notification.
+// Used for account lockouts and IP blocks — the two events that represent
+// an active brute-force attack in progress, per assignment scope.
+async alertAdmins(input: Omit<CreateNotificationInput, "recipient">) {
+  const admins = await userRepository.findAllAdminIds();
+  await Promise.all(
+    admins.map((admin: any) =>
+      this.create({ ...input, recipient: admin._id.toString() }).catch((err) => {
+        logger.error("Failed to alert admin", { err, adminId: admin._id });
+      })
+    )
+  );
+},
 };

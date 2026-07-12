@@ -1,8 +1,3 @@
-// In-memory IP failure tracker. Separate from per-account lockout (userRepository.incrementFailedAttempts) —
-// this catches an attacker spraying different usernames from ONE IP, which per-account lockout can't see.
-// In-memory is a deliberate scope decision for this assignment: fine for a single-instance deployment,
-// would need a shared store (Redis) if the app were ever horizontally scaled across multiple server instances.
-
 import { env } from "../config/env";
 
 interface IpRecord {
@@ -21,37 +16,41 @@ export function isIpBlocked(ip: string): boolean {
   if (!record?.blockedUntil) return false;
 
   if (Date.now() > record.blockedUntil) {
-    ipMap.delete(ip); // block expired, clean up
+    ipMap.delete(ip);
     return false;
   }
   return true;
 }
 
-export function recordIpFailure(ip: string): void {
+// Returns true only on the exact call that triggers a new block — false otherwise,
+// including on every call after the IP is already blocked. Callers use this to fire
+// a one-time admin alert instead of alerting on every subsequent blocked request.
+export function recordIpFailure(ip: string): boolean {
   const now = Date.now();
   const record = ipMap.get(ip);
 
   if (!record || now - record.windowStart > WINDOW_MS) {
-    // no record, or window expired — start fresh
     ipMap.set(ip, { failures: 1, windowStart: now });
-    return;
+    return false;
   }
 
   record.failures += 1;
-  if (record.failures >= env.IP_BLOCK_MAX_FAILURES) {
+  if (record.failures >= env.IP_BLOCK_MAX_FAILURES && !record.blockedUntil) {
     record.blockedUntil = now + BLOCK_MS;
+    return true; // just crossed the threshold this call
   }
+
+  return false;
 }
 
 export function clearIpFailures(ip: string): void {
   ipMap.delete(ip);
 }
 
-// Periodic cleanup so the Map doesn't grow unbounded from one-off failures that never escalate.
 setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of ipMap.entries()) {
     const expired = record.blockedUntil ? now > record.blockedUntil : now - record.windowStart > WINDOW_MS;
     if (expired) ipMap.delete(ip);
   }
-}, 5 * 60 * 1000).unref(); // unref so this timer doesn't keep the process alive during tests/shutdown
+}, 5 * 60 * 1000).unref();
