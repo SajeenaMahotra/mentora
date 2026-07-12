@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto } from "@/lib/actions/settings";
+import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto, exportMyData } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { useAuth } from "@/context/authContext";
 
@@ -40,6 +40,8 @@ export default function MentorSettingsPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     getMe().then((res) => {
@@ -152,6 +154,14 @@ export default function MentorSettingsPage() {
   }
   setUploadingPhoto(false);
 };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    const res = await exportMyData();
+    if (res.success) toast.success("Your data has been downloaded");
+    else toast.error(res.message);
+    setExporting(false);
+  };
 
   if (loading) {
     return (
@@ -374,6 +384,20 @@ export default function MentorSettingsPage() {
             </button>
           </div>
         )}
+      </section>
+
+      <section className="bg-white rounded-2xl border border-slate-100 p-6">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Your data</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Download a copy of your profile, bookings, and reviews.
+        </p>
+        <button
+          onClick={handleExportData}
+          disabled={exporting}
+          className="h-9 px-4 border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-medium rounded-lg transition"
+        >
+          {exporting ? "Preparing..." : "Download my data"}
+        </button>
       </section>
     </div>
   );

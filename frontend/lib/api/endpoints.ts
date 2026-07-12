@@ -10,6 +10,7 @@ export const ENDPOINTS = {
   UNLOCK_ACCOUNT: "/auth/unlock-account",
   MFA_DISABLE: "/auth/disable-mfa",
   FORCE_CHANGE_PASSWORD: "/auth/force-change-password",
+  ME_EXPORT: "/users/me/export",
 
   // User / profile
   ME: "/users/me",

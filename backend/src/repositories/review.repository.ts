@@ -88,4 +88,12 @@ export const reviewRepository = {
     const ids = await ReviewModel.distinct("booking", { learner: learnerId });
     return ids.map((id) => id.toString());
   },
+
+
+  findAllByLearnerForExport(learnerId: Types.ObjectId | string): Promise<IReview[]> {
+    return ReviewModel.find({ learner: learnerId })
+      .populate("mentor", "fullname")
+      .sort({ createdAt: -1 })
+      .lean();
+  },
 };

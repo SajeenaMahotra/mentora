@@ -80,3 +80,21 @@ export async function uploadPhoto(file: File) {
     return { success: false, message: err.response?.data?.message || "Failed to upload photo" };
   }
 }
+
+
+export async function exportMyData() {
+  try {
+    const res = await api.get(ENDPOINTS.ME_EXPORT, { responseType: "blob" });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "mentora-data-export.json");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: "Failed to export data" };
+  }
+}

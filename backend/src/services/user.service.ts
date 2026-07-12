@@ -9,6 +9,8 @@ import {
   buildPasswordHistoryUpdate,
 } from "../utils/password.util";
 import { packageRepository } from "../repositories/package.repository";
+import { bookingRepository } from "../repositories/booking.repository";
+import { reviewRepository } from "../repositories/review.repository";
 import Category from "../models/category.model";
 import { generateToken, hashToken } from "../utils/token.util";
 import { sendMail } from "../utils/mailer.util";
@@ -150,5 +152,47 @@ export const userService = {
     await this.checkAndUpdateProfileSetup(userId);
 
     return this.getProfile(userId);
+  },
+
+  // --- NEW: privacy/data-portability export (GDPR Art. 20 style). Returns everything meaningfully
+  // "owned" by this user — profile, their bookings (as learner or mentor), and reviews they wrote.
+  // Messages are deliberately excluded since a conversation also contains another person's data,
+  // which can't be unilaterally exported by one participant.
+  async exportUserData(userId: string) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ValidationError("User not found");
+
+    const [bookings, reviewsWritten] = await Promise.all([
+      bookingRepository.findAllForExport(userId, user.role === "mentor" ? "mentor" : "learner"),
+      reviewRepository.findAllByLearnerForExport(userId),
+    ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role,
+        bio: user.bio ?? null,
+        isProfileSetup: user.isProfileSetup,
+        averageRating: user.averageRating,
+        ratingCount: user.ratingCount,
+        createdAt: user.createdAt,
+      },
+      bookings: bookings.map((b: any) => ({
+        title: b.packageTitle,
+        price: b.packagePrice,
+        sessionType: b.sessionType,
+        status: b.status,
+        createdAt: b.createdAt,
+        completedAt: b.completedAt ?? null,
+      })),
+      reviewsWritten: reviewsWritten.map((r: any) => ({
+        mentor: r.mentor?.fullname ?? "Unknown",
+        rating: r.rating,
+        comment: r.comment ?? null,
+        createdAt: r.createdAt,
+      })),
+    };
   },
 };

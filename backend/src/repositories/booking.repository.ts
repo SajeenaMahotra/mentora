@@ -120,21 +120,21 @@ export const bookingRepository = {
   },
 
   async findAllDisputed(filter: { page: number; limit: number }) {
-  const query: { status: BookingStatus } = { status: "disputed" };
-  const skip = (filter.page - 1) * filter.limit;
+    const query: { status: BookingStatus } = { status: "disputed" };
+    const skip = (filter.page - 1) * filter.limit;
 
-  const [items, total] = await Promise.all([
-    Booking.find(query)
-      .populate("learner", "fullname profilePhoto email")
-      .populate("mentor", "fullname profilePhoto email")
-      .sort({ disputedAt: -1 })
-      .skip(skip)
-      .limit(filter.limit),
-    Booking.countDocuments(query),
-  ]);
+    const [items, total] = await Promise.all([
+      Booking.find(query)
+        .populate("learner", "fullname profilePhoto email")
+        .populate("mentor", "fullname profilePhoto email")
+        .sort({ disputedAt: -1 })
+        .skip(skip)
+        .limit(filter.limit),
+      Booking.countDocuments(query),
+    ]);
 
-  return { items, total, page: filter.page, limit: filter.limit };
-},
+    return { items, total, page: filter.page, limit: filter.limit };
+  },
 
   resolveDisputeRefunded(id: string) {
     return Booking.findByIdAndUpdate(id, { status: "refunded" }, { new: true });
@@ -142,5 +142,14 @@ export const bookingRepository = {
 
   resolveDisputeRejected(id: string) {
     return Booking.findByIdAndUpdate(id, { status: "completed" }, { new: true });
+  },
+
+
+  findAllForExport(userId: string, role: "learner" | "mentor") {
+    const filter = role === "mentor"
+      ? { mentor: new Types.ObjectId(userId) }
+      : { learner: new Types.ObjectId(userId) };
+
+    return Booking.find(filter).sort({ createdAt: -1 }).lean();
   },
 };

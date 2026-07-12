@@ -73,4 +73,16 @@ export const userController = {
       next(err);
     }
   },
+
+  // --- NEW: privacy/data-portability export. Returns raw JSON, not the standard { success, message, data } shape,
+  // since this is meant to be downloaded as a file rather than consumed as a normal API response.
+  async exportData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await userService.exportUserData(req.user!.id);
+      res.setHeader("Content-Disposition", `attachment; filename="mentora-data-export.json"`);
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  },
 };
