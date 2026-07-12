@@ -4,6 +4,7 @@ import { useAuth } from "@/context/authContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import NotificationBell from "@/components/NotificationBell";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 
 export default function MentorLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading, logout } = useAuth();
@@ -104,12 +105,14 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
               <p className="truncate text-xs text-slate-500">{user?.email}</p>
             </div>
           </Link>
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            Log out
-          </button>
+          <LogoutConfirmDialog
+            onConfirm={logout}
+            trigger={
+              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white">
+                Log out
+              </button>
+            }
+          />
         </div>
       </aside>
 

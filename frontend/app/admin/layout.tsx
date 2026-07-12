@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
 import { Users, FolderKanban, LogOut, AlertTriangle, ScrollText } from "lucide-react";
+import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
@@ -79,13 +80,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <p className="truncate text-xs text-slate-500">{user.email}</p>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <LogOut className="h-4 w-4" strokeWidth={2} />
-            Log out
-          </button>
+          <LogoutConfirmDialog
+            onConfirm={logout}
+            trigger={
+              <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white">
+                <LogOut className="h-4 w-4" strokeWidth={2} />
+                Log out
+              </button>
+            }
+          />
         </div>
       </aside>
 
