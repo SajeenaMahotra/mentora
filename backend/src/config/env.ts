@@ -51,13 +51,23 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
   FIELD_ENCRYPTION_KEY: z.string().length(64), // 32 bytes hex
+
+  IP_BLOCK_MAX_FAILURES: z.coerce.number().default(5), // failed attempts from one IP, across ALL accounts
+  IP_BLOCK_WINDOW_MINUTES: z.coerce.number().default(15), // time window failures are counted in
+  IP_BLOCK_DURATION_MINUTES: z.coerce.number().default(30), // how long the IP stays blocked
+
+  ADMIN_IP_ALLOWLIST_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  ADMIN_IP_ALLOWLIST: z.string().default(""), // comma-separated IPs, e.g. "203.0.113.5,203.0.113.6"
 });
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   // eslint-disable-next-line no-console
-  console.error("❌ Invalid environment configuration:");
+  console.error(" Invalid environment configuration:");
   // eslint-disable-next-line no-console
   console.error(parsed.error.flatten().fieldErrors);
   process.exit(1);

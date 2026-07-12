@@ -21,6 +21,7 @@ import {
 } from "../utils/mfa.util";
 import { auditLogService } from "./audit-log.service";
 import { env } from "../config/env";
+import { recordIpFailure, clearIpFailures } from "../utils/ipTracker.util";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -69,6 +70,9 @@ export const authService = {
   async login(dto: LoginDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByEmailWithPassword(dto.email);
     if (!user) {
+      // --- NEW: track by IP — catches an attacker spraying usernames that don't even exist.
+      if (ctx.ip) recordIpFailure(ctx.ip);
+
       await auditLogService.log({
         action: "LOGIN_FAILED",
         metadata: { email: dto.email, reason: "user_not_found" },
@@ -102,6 +106,9 @@ export const authService = {
 
     const passwordMatches = await comparePassword(dto.password, user.password);
     if (!passwordMatches) {
+      // --- NEW: track by IP on wrong-password too — this is the main brute-force signal.
+      if (ctx.ip) recordIpFailure(ctx.ip);
+
       const updated = await userRepository.incrementFailedAttempts(user.id);
 
       if (updated && updated.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
@@ -137,6 +144,9 @@ export const authService = {
 
       throw new UnauthorizedError();
     }
+
+    // --- NEW: password confirmed correct — this IP just proved legitimate intent, clear its failure count.
+    if (ctx.ip) clearIpFailures(ctx.ip);
 
     await userRepository.resetFailedAttempts(user.id);
 

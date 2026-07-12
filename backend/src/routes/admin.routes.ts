@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { protect, restrictTo } from "../middlewares/auth.middleware";
+import { adminIpAllowlist } from "../middlewares/adminIpAllowlist.middleware";
 import { adminController } from "../controllers/admin.controller";
 
 const router = Router();
 
-router.use(protect, restrictTo("admin"));
+router.use(adminIpAllowlist, protect, restrictTo("admin"));
 
 router.get("/users", adminController.listUsers);
 router.patch("/users/:id/status", adminController.updateUserStatus);

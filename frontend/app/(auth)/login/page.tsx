@@ -46,7 +46,9 @@ export default function LoginPage() {
 
     if (!res.success) {
       toast.error(res.message);
-      // recaptchaRef.current?.reset();
+      // --- NEW: clear the password field on failed login — don't leave a wrong/stale credential sitting visible.
+      setPassword("");
+      recaptchaRef.current?.reset();
       setCaptchaToken(null);
       setLoading(false);
       return;
@@ -58,7 +60,6 @@ export default function LoginPage() {
       return;
     }
 
-    // --- NEW: password expired, redirect to force-change-password page instead of logging in.
     if (res.passwordChangeRequired) {
       sessionStorage.setItem("passwordChangeTempToken", res.tempToken);
       router.push("/force-change-password");
