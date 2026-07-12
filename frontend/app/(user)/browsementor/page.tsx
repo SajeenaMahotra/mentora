@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getPackagesAction, getCategories } from "@/lib/actions/mentor";
 import { Search, UserX } from "lucide-react";
@@ -10,7 +10,7 @@ interface Category {
   name: string;
 }
 
-export default function BrowseMentorPage() {
+function BrowseMentorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [packages, setPackages] = useState<PackageItem[]>([]);
@@ -94,5 +94,13 @@ export default function BrowseMentorPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BrowseMentorPage() {
+  return (
+    <Suspense fallback={null}>
+      <BrowseMentorContent />
+    </Suspense>
   );
 }

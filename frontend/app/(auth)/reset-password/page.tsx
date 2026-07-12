@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { resetPasswordAction } from "@/lib/actions/auth";
 import { resetPasswordSchema } from "@/lib/validations/auth";
@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 type FieldErrors = Partial<Record<"password" | "confirmPassword", string>>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -69,5 +69,13 @@ export default function ResetPasswordPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

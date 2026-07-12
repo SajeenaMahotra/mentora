@@ -3,7 +3,7 @@ import { bookingRepository } from "../repositories/booking.repository";
 import { packageRepository } from "../repositories/package.repository";
 import { CreateBookingDto, ListBookingsQueryDto } from "../dtos/booking.dto";
 import { NotFoundError, ForbiddenError, ValidationError } from "../errors/AppError";
-import { stripeClient } from "../../src/utils/stripe.util";
+import { stripeClient } from "../utils/stripe.util";
 import { auditLogService } from "./audit-log.service";
 import { notificationService } from "./notification.service";
 

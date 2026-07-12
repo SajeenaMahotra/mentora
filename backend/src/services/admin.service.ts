@@ -2,7 +2,7 @@ import logger from "../config/logger";
 import { userRepository } from "../repositories/user.repository";
 import { ValidationError, ConflictError } from "../errors/AppError";
 import { AccountStatus } from "../models/user.model";
-import { bookingRepository } from "../../src/repositories/booking.repository";
+import { bookingRepository } from "../repositories/booking.repository";
 import { stripeClient } from "../utils/stripe.util";
 import { auditLogService } from "./audit-log.service";
 import { auditLogRepository } from "../repositories/audit-log.repository";

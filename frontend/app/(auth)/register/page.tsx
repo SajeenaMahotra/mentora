@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { registerAction } from "@/lib/actions/auth";
@@ -14,7 +14,7 @@ import type ReCAPTCHA from "react-google-recaptcha";
 type Role = "learner" | "mentor";
 type FieldErrors = Partial<Record<"fullname" | "email" | "password" | "confirmPassword", string>>;
 
-export default function RegisterPage() {
+function RegisterForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [form, setForm] = useState({ fullname: "", email: "", password: "", confirmPassword: "", role: "learner" as Role });
@@ -127,5 +127,13 @@ export default function RegisterPage() {
       <p className="mt-3 text-center text-xs"><Link href="/role-selection" className="text-blue-600 hover:underline">← Change role</Link></p>
       <p className="mt-3 text-center text-sm text-slate-600">Already have an account? <Link href="/login" className="font-semibold text-blue-600 hover:underline">Sign in</Link></p>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

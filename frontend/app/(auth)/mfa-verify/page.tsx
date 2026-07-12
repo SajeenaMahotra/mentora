@@ -44,6 +44,14 @@ export default function MfaVerifyPage() {
       return;
     }
 
+    // --- NEW: password expired after MFA succeeded, redirect to force-change-password instead of logging in.
+    if (res.passwordChangeRequired) {
+      sessionStorage.removeItem("mfaTempToken");
+      sessionStorage.setItem("passwordChangeTempToken", res.tempToken);
+      router.push("/force-change-password");
+      return;
+    }
+
     sessionStorage.removeItem("mfaTempToken");
     toast.success("Welcome back!");
     login(res.token, res.data);
