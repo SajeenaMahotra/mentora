@@ -80,3 +80,13 @@ export async function markCompleteAction(id: string) {
     return { success: false, message: err.response?.data?.message || "Failed to mark as completed" };
   }
 }
+
+
+export async function raiseDisputeAction(id: string, reason: string) {
+  try {
+    const res = await api.post(ENDPOINTS.BOOKING_DISPUTE(id), { reason });
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to raise dispute" };
+  }
+}

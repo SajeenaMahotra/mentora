@@ -1,9 +1,11 @@
+import logger from "../config/logger";
 import { bookingRepository } from "../repositories/booking.repository";
 import { packageRepository } from "../repositories/package.repository";
 import { CreateBookingDto, ListBookingsQueryDto } from "../dtos/booking.dto";
 import { NotFoundError, ForbiddenError, ValidationError } from "../errors/AppError";
 import { stripeClient } from "../../src/utils/stripe.util";
 import { auditLogService } from "./audit-log.service";
+import { notificationService } from "./notification.service";
 
 interface RequestContext {
   ip?: string;
@@ -19,7 +21,7 @@ export const bookingService = {
       throw new ForbiddenError("You cannot book your own package");
     }
 
-    return bookingRepository.create({
+    const booking = await bookingRepository.create({
       learner: learnerId,
       mentor: pkg.mentor.toString(),
       package: pkg.id,
@@ -27,6 +29,22 @@ export const bookingService = {
       packagePrice: pkg.price,
       sessionType: pkg.sessionType,
     });
+
+    try {
+      await notificationService.create({
+        recipient: pkg.mentor.toString(),
+        type: "booking_requested",
+        title: "New booking request",
+        body: `You have a new booking request for "${pkg.title}"`,
+        link: "/mentor/bookings",
+        relatedType: "Booking",
+        relatedId: booking.id,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
+    return booking;
   },
 
   async listForMentor(mentorId: string, query: ListBookingsQueryDto) {
@@ -56,6 +74,20 @@ export const bookingService = {
       userAgent: ctx.userAgent,
     });
 
+    try {
+      await notificationService.create({
+        recipient: booking.learner.toString(),
+        type: "booking_accepted",
+        title: "Booking accepted",
+        body: `Your booking for "${booking.packageTitle}" was accepted`,
+        link: "/bookings",
+        relatedType: "Booking",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
     return result;
   },
 
@@ -78,6 +110,20 @@ export const bookingService = {
       userAgent: ctx.userAgent,
     });
 
+    try {
+      await notificationService.create({
+        recipient: booking.learner.toString(),
+        type: "booking_declined",
+        title: "Booking declined",
+        body: `Your booking for "${booking.packageTitle}" was declined`,
+        link: "/bookings",
+        relatedType: "Booking",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
     return result;
   },
 
@@ -99,6 +145,20 @@ export const bookingService = {
       ip: ctx.ip,
       userAgent: ctx.userAgent,
     });
+
+    try {
+      await notificationService.create({
+        recipient: booking.mentor.toString(),
+        type: "booking_cancelled",
+        title: "Booking cancelled",
+        body: `The learner cancelled their request for "${booking.packageTitle}"`,
+        link: "/mentor/bookings",
+        relatedType: "Booking",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
 
     return result;
   },
@@ -166,6 +226,20 @@ export const bookingService = {
       userAgent: ctx.userAgent,
     });
 
+    try {
+      await notificationService.create({
+        recipient: booking.learner.toString(),
+        type: "booking_completed",
+        title: "Session marked complete",
+        body: `Your mentor marked "${booking.packageTitle}" as complete. You have 3 days to raise a dispute if needed.`,
+        link: "/bookings",
+        relatedType: "Booking",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
+
     return result;
   },
 
@@ -192,6 +266,20 @@ export const bookingService = {
       ip: ctx.ip,
       userAgent: ctx.userAgent,
     });
+
+    try {
+      await notificationService.create({
+        recipient: booking.mentor.toString(),
+        type: "dispute_raised",
+        title: "Dispute raised",
+        body: `A dispute was raised against your session "${booking.packageTitle}"`,
+        link: "/mentor/bookings",
+        relatedType: "Dispute",
+        relatedId: bookingId,
+      });
+    } catch (err) {
+      logger.error("Failed to create notification", { err });
+    }
 
     return result;
   },

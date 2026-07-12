@@ -153,7 +153,7 @@ export default function AdminCategoriesPage() {
             ) : categories.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-5 py-14 text-center text-sm text-slate-400">
-                  No categories yet — add one above to get started.
+                  No categories yet - add one above to get started.
                 </td>
               </tr>
             ) : (

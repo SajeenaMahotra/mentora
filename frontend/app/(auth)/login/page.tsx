@@ -46,7 +46,7 @@ export default function LoginPage() {
 
     if (!res.success) {
       toast.error(res.message);
-      recaptchaRef.current?.reset();
+      // recaptchaRef.current?.reset();
       setCaptchaToken(null);
       setLoading(false);
       return;
