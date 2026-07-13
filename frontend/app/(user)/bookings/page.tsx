@@ -300,7 +300,7 @@ function BookingsPageContent() {
                         <DialogHeader>
                           <DialogTitle>Rate your session</DialogTitle>
                           <DialogDescription>
-                            How was your session with {b.mentor?.fullname || "your mentor"} for "{b.packageTitle}"?
+                            How was your session with {b.mentor?.fullname || "your mentor"} for &quot;{b.packageTitle}&quot;?
                           </DialogDescription>
                         </DialogHeader>
                         <div className="py-2">

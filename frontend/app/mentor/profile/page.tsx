@@ -378,7 +378,7 @@ export default function MentorProfilePage() {
               </div>
             ) : confirmDeleteId === p._id ? (
               <div key={p._id} className="flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-                <p className="text-sm text-red-700">Delete "{p.title}"? This cannot be undone.</p>
+                <p className="text-sm text-red-700">Delete &quot;{p.title}&quot;? This cannot be undone.</p>
                 <div className="flex gap-2 shrink-0">
                   <button
                     onClick={() => handleDelete(p._id)}

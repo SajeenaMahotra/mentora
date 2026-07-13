@@ -37,8 +37,9 @@ export default function MessageLearnerButton({ learnerId, learnerFullname, learn
         unreadCount: 0,
       });
       router.push("/mentor/messages");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Unable to start conversation");
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message ?? "Unable to start conversation");
     } finally {
       setLoading(false);
     }

@@ -216,7 +216,7 @@ export default function AdminCategoriesPage() {
       <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{pendingDelete?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete &quot;{pendingDelete?.name}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
               This cannot be undone. If any mentor or package still references this category, the delete
               will be blocked automatically.

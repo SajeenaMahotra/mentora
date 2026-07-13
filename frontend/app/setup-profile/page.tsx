@@ -40,6 +40,8 @@ export default function SetupProfilePage() {
     });
   }, []);
 
+  const updatePkg = (k: string, v: string) => setPkg((f) => ({ ...f, [k]: v }));
+
   useEffect(() => {
     if (selectedSubjects.length === 1) {
       updatePkg("subject", selectedSubjects[0]);
@@ -51,12 +53,6 @@ export default function SetupProfilePage() {
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
   };
-
-  const updatePkg = (k: string, v: string) => setPkg((f) => ({ ...f, [k]: v }));
-
-  const subjectNames = categories
-    .filter((c) => selectedSubjects.includes(c._id))
-    .map((c) => c.name);
 
   const selectedCategory = categories.find((c) => c._id === pkg.subject);
 
@@ -155,7 +151,7 @@ export default function SetupProfilePage() {
               This is roughly how learners will see you.
             </p>
 
-            <PackageCard pkg={previewPackage} onClick={() => {}} />
+            <PackageCard pkg={previewPackage} onClick={() => { }} />
           </div>
 
           <p className="text-xs text-slate-500">Step 1 of 1. This only takes a minute.</p>
@@ -208,11 +204,10 @@ export default function SetupProfilePage() {
                         type="button"
                         key={c._id}
                         onClick={() => toggleSubject(c._id)}
-                        className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${
-                          active
+                        className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${active
                             ? "bg-[#3B5EFF] text-white border-[#3B5EFF]"
                             : "bg-white text-slate-600 border-slate-200 hover:border-[#3B5EFF]/40"
-                        }`}
+                          }`}
                       >
                         {active && "✓ "}
                         {c.name}
@@ -266,11 +261,10 @@ export default function SetupProfilePage() {
                               type="button"
                               key={c._id}
                               onClick={() => updatePkg("subject", c._id)}
-                              className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${
-                                active
+                              className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition ${active
                                   ? "bg-[#3B5EFF] text-white border-[#3B5EFF]"
                                   : "bg-white text-slate-600 border-slate-200 hover:border-[#3B5EFF]/40"
-                              }`}
+                                }`}
                             >
                               {active && "✓ "}
                               {c.name}

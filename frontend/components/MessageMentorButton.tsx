@@ -29,17 +29,18 @@ export default function MessageMentorButton({ mentorId, mentorFullname, mentorPh
       const res = await startConversation(mentorId);
       const conversationId = res.data.data._id;
 
-      console.log("DEBUG openConversation", { conversationId, mentorId, mentorFullname });
-openConversation({
-  id: conversationId,
-  participant: { _id: mentorId, fullname: mentorFullname, profilePhoto: mentorPhoto },
-  lastMessageAt: undefined,
-  lastMessagePreview: undefined,
-  unreadCount: 0,
-});
-router.push("/message");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? "Unable to start conversation");
+
+      openConversation({
+        id: conversationId,
+        participant: { _id: mentorId, fullname: mentorFullname, profilePhoto: mentorPhoto },
+        lastMessageAt: undefined,
+        lastMessagePreview: undefined,
+        unreadCount: 0,
+      });
+      router.push("/message");
+    } catch (err) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message ?? "Unable to start conversation");
     } finally {
       setLoading(false);
     }

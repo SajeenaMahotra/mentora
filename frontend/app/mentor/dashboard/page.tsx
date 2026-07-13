@@ -56,7 +56,7 @@ export default function MentorDashboardPage() {
           <h1 className="text-2xl font-bold text-slate-900">
             Welcome back{profile?.fullname ? `, ${profile.fullname.split(" ")[0]}` : ""}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Here's an overview of your mentor account.</p>
+          <p className="text-slate-500 text-sm mt-1">Here&apos;s an overview of your mentor account.</p>
         </div>
         {!profile?.emailVerified && (
           <span className="text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full">

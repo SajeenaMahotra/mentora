@@ -24,7 +24,7 @@ export default function LogoutConfirmDialog({ onConfirm, trigger }: LogoutConfir
         <AlertDialogHeader>
           <AlertDialogTitle>Log out?</AlertDialogTitle>
           <AlertDialogDescription>
-            You'll need to sign in again to access your account.
+            You&apos;ll need to sign in again to access your account.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
