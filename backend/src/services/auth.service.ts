@@ -141,8 +141,8 @@ export const authService = {
           user.email,
           "Mentora account locked",
           `Your account was locked after ${MAX_FAILED_ATTEMPTS} failed login attempts.\n` +
-            `Unlock it here: ${process.env.CLIENT_URL}/unlock-account?token=${token}\n` +
-            `This link expires in 1 hour.`
+          `Unlock it here: ${process.env.CLIENT_URL}/unlock-account?token=${token}\n` +
+          `This link expires in 1 hour.`
         );
 
         await auditLogService.log({
@@ -431,7 +431,7 @@ export const authService = {
         user.email,
         "Reset your Mentora password",
         `Reset your password here: ${process.env.CLIENT_URL}/reset-password?token=${token}\n` +
-          `This link expires in 1 hour. If you didn't request this, ignore this email.`
+        `This link expires in 1 hour. If you didn't request this, ignore this email.`
       );
 
       await auditLogService.log({
@@ -498,5 +498,19 @@ export const authService = {
     });
 
     return { message: "Two-factor authentication disabled." };
+  },
+
+
+  async logout(userId: string, ctx: RequestContext = {}) {
+    await userRepository.logout(userId);
+
+    await auditLogService.log({
+      actor: userId,
+      action: "LOGOUT",
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    return { message: "Logged out successfully." };
   },
 };

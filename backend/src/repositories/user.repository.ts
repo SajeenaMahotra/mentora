@@ -214,6 +214,10 @@ export const userRepository = {
     });
   },
 
+  logout(id: string) {
+    return User.findByIdAndUpdate(id, { tokenValidAfter: new Date() });
+  },
+
   findByIdWithPasswordAndMfa(id: string) {
     return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes +passwordHistory +passwordChangedAt");
   },

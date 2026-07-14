@@ -2,6 +2,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { disconnectSocket } from "@/lib/socket";
+import { ENDPOINTS } from "@/lib/api/endpoints";
+import api from "@/lib/api/axios";
 
 interface User {
   _id: string;
@@ -17,7 +19,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   login: (token: string, userData: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
 
@@ -58,7 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post(ENDPOINTS.LOGOUT);
+    } catch {
+      // Even if the server call fails (e.g. network issue, already-expired token),
+      // we still clear the local session below — logout should never get "stuck".
+    }
     disconnectSocket();
     localStorage.removeItem("token");
     localStorage.removeItem("user");

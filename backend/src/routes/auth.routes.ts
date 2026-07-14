@@ -4,6 +4,7 @@ import { protect, restrictTo } from "../middlewares/auth.middleware";
 import { requireCaptcha } from "../middlewares/captcha.middleware";
 import { authLimiter } from "../middlewares/rateLimiters";
 import { checkIpNotBlocked } from "../middlewares/ipBlock.middleware";
+import { adminIpAllowlist } from "../middlewares/adminIpAllowlist.middleware";
 
 const router = Router();
 
@@ -18,7 +19,8 @@ router.post("/reset-password", checkIpNotBlocked, authLimiter, authController.re
 router.post("/mfa/setup", protect, authController.setupMfa);
 router.post("/mfa/verify-setup", protect, authController.verifyMfaSetup);
 
-router.patch("/admin/unlock/:userId", protect, restrictTo("admin"), authController.adminUnlockAccount);
+router.patch("/admin/unlock/:userId", adminIpAllowlist, protect, restrictTo("admin"), authController.adminUnlockAccount);
 router.post("/disable-mfa", protect, authController.disableMfa);
+router.post("/logout", protect, authController.logout);
 
 export default router;

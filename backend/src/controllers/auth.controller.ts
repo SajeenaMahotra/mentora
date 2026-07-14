@@ -163,4 +163,13 @@ export const authController = {
       next(err);
     }
   },
+
+  async logout(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await authService.logout(req.user!.id, getContext(req));
+      res.status(200).json({ success: true, message: result.message });
+    } catch (err) {
+      next(err);
+    }
+  },
 };
