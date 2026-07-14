@@ -37,7 +37,8 @@ interface RequestContext {
 }
 
 // --- Password expiry check, shared by both the non-MFA and post-MFA login paths.
-function isPasswordExpired(passwordChangedAt: Date): boolean {
+function isPasswordExpired(passwordChangedAt: Date | undefined): boolean {
+  if (!passwordChangedAt) return false; // legacy accounts predating this field — don't force expiry
   const expiryMs = env.PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   return Date.now() - passwordChangedAt.getTime() > expiryMs;
 }

@@ -7,15 +7,20 @@ const ACCESS_EXPIRES_IN = "15m";
 export interface AccessTokenPayload {
   sub: string; // user id
   role: UserRole;
-   iat?: number;
+  type: "access";
+  iat?: number;
 }
 
-export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES_IN });
+export function signAccessToken(payload: Omit<AccessTokenPayload, "type">): string {
+  return jwt.sign({ ...payload, type: "access" }, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES_IN });
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  return jwt.verify(token, ACCESS_SECRET) as AccessTokenPayload;
+  const payload = jwt.verify(token, ACCESS_SECRET) as AccessTokenPayload;
+  if (payload.type !== "access") {
+    throw new Error("Invalid token type");
+  }
+  return payload;
 }
 
 // --- MFA temp token: issued after password check, before MFA verification.
