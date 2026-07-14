@@ -24,6 +24,8 @@ import { env } from "../config/env";
 import { recordIpFailure, clearIpFailures } from "../utils/ipTracker.util";
 import { notificationService } from "./notification.service";
 
+const DUMMY_PASSWORD_HASH = "$2b$12$1XaJQ.EAvXE2SPWtQ21Wxutq.GWKQIA/OYuiHxQs5U.33ePQ5IEcK";
+
 const MAX_FAILED_ATTEMPTS = 5;
 const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -71,6 +73,7 @@ export const authService = {
   async login(dto: LoginDto, ctx: RequestContext = {}) {
     const user = await userRepository.findByEmailWithPassword(dto.email);
     if (!user) {
+      await comparePassword(dto.password, DUMMY_PASSWORD_HASH);
       // --- NEW: track by IP, alert admins the moment this crosses the block threshold.
       if (ctx.ip) {
         const justBlocked = recordIpFailure(ctx.ip);

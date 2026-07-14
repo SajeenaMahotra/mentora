@@ -3,7 +3,7 @@ import http from "http";
 import { Server } from "socket.io";
 import { createApp } from "./app";
 import { connectDatabase } from "./database/connection";
-import { env } from "./config/env";
+import { env, allowedOrigins } from "./config/env";
 import logger from "./config/logger";
 import { registerChatHandlers, AppServer } from "./sockets/chat.gateway";
 import { setIO } from "./sockets/io.instance";
@@ -17,7 +17,7 @@ async function bootstrap() {
 
   const io: AppServer = new Server(httpServer, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: allowedOrigins,
       credentials: true,
     },
     maxHttpBufferSize: 1e5, // 100kb

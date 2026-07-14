@@ -11,7 +11,8 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(5050),
-  CLIENT_URL: z.string().url(),
+  CLIENT_URL: z.string().url(), // primary origin (kept for backward compatibility)
+CLIENT_URLS: z.string().default(""), // comma-separated additional allowed origins, e.g. "http://192.168.159.1:3000"
 
   MONGODB_URI: z.string().min(1),
 
@@ -28,7 +29,7 @@ const envSchema = z.object({
   PASSWORD_EXPIRY_DAYS: z.coerce.number().default(90),
   BCRYPT_SALT_ROUNDS: z.coerce.number().default(12),
 
-  MAX_FAILED_LOGIN_ATTEMPTS: z.coerce.number().default(5),
+  MAX_FAILED_LOGIN_ATTEMPTS: z.coerce.number().default(15),
   LOCKOUT_DURATION_MINUTES: z.coerce.number().default(15),
   CAPTCHA_THRESHOLD_ATTEMPTS: z.coerce.number().default(3),
 
@@ -52,7 +53,7 @@ const envSchema = z.object({
 
   FIELD_ENCRYPTION_KEY: z.string().length(64), // 32 bytes hex
 
-  IP_BLOCK_MAX_FAILURES: z.coerce.number().default(5), // failed attempts from one IP, across ALL accounts
+  IP_BLOCK_MAX_FAILURES: z.coerce.number().default(15), // failed attempts from one IP, across ALL accounts
   IP_BLOCK_WINDOW_MINUTES: z.coerce.number().default(15), // time window failures are counted in
   IP_BLOCK_DURATION_MINUTES: z.coerce.number().default(30), // how long the IP stays blocked
 
@@ -77,3 +78,7 @@ export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
 export const isDev = env.NODE_ENV === "development";
 export const isTest = env.NODE_ENV === "test";
+export const allowedOrigins = [
+  env.CLIENT_URL,
+  ...env.CLIENT_URLS.split(",").map((o) => o.trim()).filter(Boolean),
+];

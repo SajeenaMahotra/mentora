@@ -6,7 +6,7 @@ import compression from "compression";
 import hpp from "hpp";
 import path from "path";
 import rateLimit from "express-rate-limit";
-import { env, isProd } from "./config/env";
+import { env, isProd, allowedOrigins } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middlewares/errorHandler";
 import { sanitizeRequest } from "./middlewares/sanitize.middleware";
 import logger from "./config/logger";
@@ -39,14 +39,26 @@ export function createApp(): Application {
     })
   );
 
-  app.use(
-    cors({
-      origin: env.CLIENT_URL,
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-    })
-  );
+  const allowedOrigins = [
+  env.CLIENT_URL,
+  ...env.CLIENT_URLS.split(",").map((o) => o.trim()).filter(Boolean),
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (curl, server-to-server) with no Origin header
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      logger.warn(`Blocked CORS request from disallowed origin: ${origin}`);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
   // --- Stripe webhook: MUST come before express.json(), needs raw body for signature verification ---
   app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhook);
