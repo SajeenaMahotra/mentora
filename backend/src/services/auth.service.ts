@@ -444,6 +444,13 @@ export const authService = {
   },
 
   async resetPassword(dto: ResetPasswordDto, ctx: RequestContext = {}) {
+    // Still need to read the user once, to run password-strength and
+    // reuse checks against their current password/history before we
+    // attempt the write. This read is NOT the security boundary anymore --
+    // it's purely to fetch data for validation. The actual "is this token
+    // still valid RIGHT NOW" check happens atomically inside
+    // resetPasswordWithToken() below, as part of the same operation that
+    // performs the write.
     const user = await userRepository.findByResetToken(hashToken(dto.token));
     if (!user) {
       throw new ValidationError("Invalid or expired reset link");
@@ -455,7 +462,15 @@ export const authService = {
     const newHash = await hashPassword(dto.password);
     const updatedHistory = buildPasswordHistoryUpdate(user.password, user.passwordChangedAt, user.passwordHistory);
 
-    await userRepository.updatePassword(user.id, newHash, updatedHistory);
+    // Atomic check-and-consume. If a concurrent request already used this
+    // exact token (and cleared resetPasswordTokenHash) between our read
+    // above and this write, updated will be null -- even though our read
+    // a moment ago saw the token as valid. This is what actually closes
+    // the race window; the read above is just for validation data.
+    const updated = await userRepository.resetPasswordWithToken(hashToken(dto.token), newHash, updatedHistory);
+    if (!updated) {
+      throw new ValidationError("Invalid or expired reset link");
+    }
 
     await auditLogService.log({
       actor: user.id,

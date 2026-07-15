@@ -14,8 +14,8 @@ export const userRepository = {
   },
 
   findByEmailWithPassword(email: string) {
-  return User.findOne({ email }).select("+password +failedLoginAttempts +lockedUntil +passwordChangedAt");
-},
+    return User.findOne({ email }).select("+password +failedLoginAttempts +lockedUntil +passwordChangedAt");
+  },
 
   findById(id: string) {
     return User.findById(id);
@@ -228,6 +228,30 @@ export const userRepository = {
 
 
   findAllAdminIds() {
-  return User.find({ role: "admin", isDeleted: { $ne: true } }).select("_id").lean();
-},
+    return User.find({ role: "admin", isDeleted: { $ne: true } }).select("_id").lean();
+  },
+
+  resetPasswordWithToken(
+    tokenHash: string,
+    newHash: string,
+    updatedHistory: { hash: string; changedAt: Date }[]
+  ) {
+    return User.findOneAndUpdate(
+      { resetPasswordTokenHash: tokenHash, resetPasswordExpires: { $gt: new Date() } },
+      {
+        password: newHash,
+        passwordChangedAt: new Date(),
+        passwordHistory: updatedHistory,
+        failedLoginAttempts: 0,
+        $unset: {
+          lockedUntil: 1,
+          unlockTokenHash: 1,
+          unlockTokenExpires: 1,
+          resetPasswordTokenHash: 1,
+          resetPasswordExpires: 1,
+        },
+      },
+      { new: true }
+    );
+  },
 };
