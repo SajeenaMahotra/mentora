@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Clock, Package as PackageIcon, ShieldCheck, Layers, Check, Star } from "lucide-react";
 import MessageMentorButton from "../../../../components/MessageMentorButton";
 import BookPackageButton from "../../_components/BookPackageButton";
+import UserAvatar from "@/components/UserAvatar";
 
 interface PackageItem {
   _id: string;
@@ -88,11 +89,7 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
   );
 
   const mentor = packages[0].mentor;
-  const photoUrl = mentor?.profilePhoto
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${mentor.profilePhoto}`
-    : null;
   const name = mentor?.fullname || "Unknown";
-  const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   const subjects = Array.from(new Set(packages.map(p => p.subject?.name).filter(Boolean)));
 
   return (
@@ -108,9 +105,14 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
           {/* Profile header */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <div className="flex items-center gap-4 mb-5">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl flex-shrink-0 overflow-hidden">
-                {photoUrl ? <img src={photoUrl} className="w-full h-full object-cover" alt={name} /> : initials}
-              </div>
+              <UserAvatar
+                userId={mentor?._id}
+                hasPhoto={!!mentor?.profilePhoto}
+                name={name}
+                size={64}
+                className="rounded-2xl bg-indigo-50 text-indigo-600"
+                textClassName="text-xl font-bold"
+              />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-bold text-slate-900">{name}</h1>
@@ -129,7 +131,6 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
                 <MessageMentorButton
                   mentorId={mentor._id}
                   mentorFullname={mentor.fullname}
-                  mentorPhoto={photoUrl ?? undefined}
                 />
               )}
             </div>
@@ -211,19 +212,21 @@ export default function MentorDetailPage({ params }: { params: Promise<{ id: str
             ) : (
               <div className="space-y-4">
                 {reviews.map((r) => {
-                  const reviewerPhoto = r.learner?.profilePhoto
-                    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${r.learner.profilePhoto}`
-                    : null;
-                  const reviewerInitials = (r.learner?.fullname || "L").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+                  const reviewerName = r.learner?.fullname || "Learner";
                   return (
                     <div key={r._id} className="pb-4 border-b border-slate-50 last:border-0 last:pb-0">
                       <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs flex-shrink-0 overflow-hidden">
-                          {reviewerPhoto ? <img src={reviewerPhoto} className="w-full h-full object-cover" alt="" /> : reviewerInitials}
-                        </div>
+                        <UserAvatar
+                          userId={r.learner?._id}
+                          hasPhoto={!!r.learner?.profilePhoto}
+                          name={reviewerName}
+                          size={32}
+                          className="rounded-full bg-slate-100 text-slate-500"
+                          textClassName="text-xs font-bold"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-slate-900">{r.learner?.fullname || "Learner"}</p>
+                            <p className="text-sm font-semibold text-slate-900">{reviewerName}</p>
                             <p className="text-xs text-slate-400 flex-shrink-0">{new Date(r.createdAt).toLocaleDateString()}</p>
                           </div>
                           <StarDisplay rating={r.rating} size={12} />

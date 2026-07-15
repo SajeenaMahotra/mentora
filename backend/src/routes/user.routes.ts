@@ -16,5 +16,6 @@ router.patch("/me/password", userController.changePassword);
 router.patch("/me/email", userController.changeEmail);
 router.patch("/me/subjects", userController.updateSubjects);
 router.get("/me/export", userController.exportData);
+router.get("/:id/photo", protect, userController.getPhoto);
 
 export default router;

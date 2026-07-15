@@ -19,6 +19,7 @@ export const ENDPOINTS = {
   ME_PASSWORD: "/users/me/password",
   ME_EMAIL: "/users/me/email",
   ME_SUBJECTS: "/users/me/subjects",
+  USER_PHOTO: (id: string) => `/users/${id}/photo`,
 
   // Packages
   PACKAGES: "/packages",
