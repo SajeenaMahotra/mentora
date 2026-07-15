@@ -90,9 +90,13 @@ export const bookingRepository = {
     );
   },
 
-  markAsPaid(id: string, paymentIntentId: string) {
-    return Booking.findByIdAndUpdate(
-      id,
+  // Idempotent: only transitions "accepted" -> "paid", and only for the session that
+  // matches the booking's currently active stripeSessionId. A duplicate/stale webhook
+  // firing for an older, already-superseded checkout session is a no-op instead of
+  // silently overwriting the payment record of a session that already succeeded.
+  markAsPaid(id: string, paymentIntentId: string, stripeSessionId: string) {
+    return Booking.findOneAndUpdate(
+      { _id: id, status: "accepted", stripeSessionId },
       { status: "paid", stripePaymentIntentId: paymentIntentId, paidAt: new Date() },
       { new: true }
     );

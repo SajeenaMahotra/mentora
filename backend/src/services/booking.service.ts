@@ -171,6 +171,17 @@ export const bookingService = {
       throw new ValidationError("Only accepted bookings can be paid for");
     }
 
+    // If a checkout session already exists for this booking, check whether it's still
+    // usable before creating a new one. This prevents multiple simultaneously-valid
+    // payment links for the same booking, which could otherwise let a learner pay
+    // twice (once via each link) for a single session.
+    if (booking.stripeSessionId) {
+      const existing = await stripeClient.checkout.sessions.retrieve(booking.stripeSessionId);
+      if (existing.status === "open") {
+        return { checkoutUrl: existing.url };
+      }
+    }
+
     const session = await stripeClient.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
