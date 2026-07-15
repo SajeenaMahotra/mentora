@@ -26,12 +26,6 @@ export function createApp(): Application {
 
   app.set("trust proxy", 1);
 
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads"), {
-    maxAge: "1d",
-    index: false,
-    dotfiles: "deny",
-  }));
-
   app.use(
     helmet({
       contentSecurityPolicy: isProd ? undefined : false,

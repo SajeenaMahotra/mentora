@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import { updateProfileSchema, changePasswordSchema, changeEmailSchema, verifyEmailSchema, updateSubjectsSchema } from "../dtos/user.dto";
 import { userService } from "../services/user.service";
 import { ValidationError } from "../errors/AppError";
+import User from "../models/user.model";
+import path from "path";
 
 export const userController = {
   async getMe(req: Request, res: Response, next: NextFunction) {
@@ -81,6 +83,20 @@ export const userController = {
       const data = await userService.exportUserData(req.user!.id);
       res.setHeader("Content-Disposition", `attachment; filename="mentora-data-export.json"`);
       res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+
+  async getPhoto(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await User.findById(req.params.id).select("profilePhoto");
+      if (!user || !user.profilePhoto) {
+        return res.status(404).json({ success: false, message: "Photo not found" });
+      }
+      const filePath = path.join(process.cwd(), "uploads", "profile-photos", user.profilePhoto);
+      res.sendFile(filePath);
     } catch (err) {
       next(err);
     }
