@@ -163,7 +163,7 @@ export const bookingService = {
     return result;
   },
 
-  async createCheckoutSession(learnerId: string, bookingId: string, ctx: RequestContext = {}) {
+  async createCheckoutSession(learnerId: string, bookingId: string, origin: string, ctx: RequestContext = {}) {
     const booking = await bookingRepository.findByIdAndLearner(bookingId, learnerId);
     if (!booking) throw new NotFoundError("Booking not found");
 
@@ -171,10 +171,6 @@ export const bookingService = {
       throw new ValidationError("Only accepted bookings can be paid for");
     }
 
-    // If a checkout session already exists for this booking, check whether it's still
-    // usable before creating a new one. This prevents multiple simultaneously-valid
-    // payment links for the same booking, which could otherwise let a learner pay
-    // twice (once via each link) for a single session.
     if (booking.stripeSessionId) {
       const existing = await stripeClient.checkout.sessions.retrieve(booking.stripeSessionId);
       if (existing.status === "open") {
@@ -195,12 +191,13 @@ export const bookingService = {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.CLIENT_URL}/bookings?payment=success`,
-      cancel_url: `${process.env.CLIENT_URL}/bookings?payment=cancelled`,
+      success_url: `${origin}/bookings?payment=success`,
+      cancel_url: `${origin}/bookings?payment=cancelled`,
       metadata: {
         bookingId: booking.id,
       },
     });
+    // ...rest unchanged
 
     booking.stripeSessionId = session.id;
     await booking.save();

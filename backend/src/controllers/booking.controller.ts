@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { createBookingSchema, listBookingsQuerySchema, raiseDisputeSchema } from "../dtos/booking.dto";
 import { bookingService } from "../services/booking.service";
+import { env } from "../config/env";
 
 function getContext(req: Request) {
   return { ip: req.ip, userAgent: req.headers["user-agent"] };
@@ -68,14 +69,19 @@ export const bookingController = {
   },
 
   async checkout(req: Request, res: Response, next: NextFunction) {
-  try {
-    const bookingId = req.params.id as string;
-    const data = await bookingService.createCheckoutSession(req.user!.id, bookingId, getContext(req));
-    res.status(200).json({ success: true, message: "Checkout session created", data });
-  } catch (err) {
-    next(err);
-  }
-},
+    try {
+      const bookingId = req.params.id as string;
+
+      const allowedOrigins = [env.CLIENT_URL, ...env.CLIENT_URLS.split(",").map((o) => o.trim())];
+      const requestOrigin = req.headers.origin;
+      const origin = requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : env.CLIENT_URL;
+
+      const data = await bookingService.createCheckoutSession(req.user!.id, bookingId, origin, getContext(req));
+      res.status(200).json({ success: true, message: "Checkout session created", data });
+    } catch (err) {
+      next(err);
+    }
+  },
 
   async markComplete(req: Request, res: Response, next: NextFunction) {
     try {
