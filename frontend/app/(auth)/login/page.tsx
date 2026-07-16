@@ -67,7 +67,7 @@ export default function LoginPage() {
     }
 
     toast.success("Welcome back!");
-    login(res.token, res.data);
+    login(res.data);
   };
 
   return (
@@ -86,9 +86,8 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
             placeholder="you@example.com"
-            className={`w-full h-11 px-4 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-              errors.email ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
-            }`}
+            className={`w-full h-11 px-4 border rounded-xl text-sm focus:outline-none focus:ring-2 ${errors.email ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
+              }`}
           />
           {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
         </div>

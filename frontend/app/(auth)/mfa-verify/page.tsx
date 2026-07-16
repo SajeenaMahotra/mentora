@@ -54,7 +54,7 @@ export default function MfaVerifyPage() {
 
     sessionStorage.removeItem("mfaTempToken");
     toast.success("Welcome back!");
-    login(res.token, res.data);
+    login(res.data);
   };
 
   return (
@@ -74,9 +74,8 @@ export default function MfaVerifyPage() {
             autoFocus
             placeholder="123456"
             maxLength={10}
-            className={`w-full h-11 px-4 border rounded-xl text-sm tracking-widest text-center focus:outline-none focus:ring-2 ${
-              error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
-            }`}
+            className={`w-full h-11 px-4 border rounded-xl text-sm tracking-widest text-center focus:outline-none focus:ring-2 ${error ? "border-red-400 focus:ring-red-400" : "border-slate-200 focus:ring-blue-500"
+              }`}
           />
           {error && <p className="mt-1 text-xs text-red-500 text-center">{error}</p>}
         </div>

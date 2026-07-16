@@ -53,7 +53,7 @@ export default function ForceChangePasswordPage() {
 
     sessionStorage.removeItem("passwordChangeTempToken");
     toast.success("Password updated. Welcome back!");
-    login(res.token, res.data);
+    login(res.data);
   };
 
   return (

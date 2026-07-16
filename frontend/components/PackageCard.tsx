@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { Clock, Star } from "lucide-react";
+import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 export interface PackageItem {
   _id: string;
@@ -18,12 +21,45 @@ export interface PackageItem {
   };
 }
 
+// --- NEW: fetches the mentor's photo through the authenticated API (cookie sent
+// automatically) and turns it into a blob URL, instead of pointing <img> straight
+// at the backend's static file path, which the CORP/same-site policy blocks.
+function useMentorPhoto(mentorId: string | undefined, hasPhoto: boolean) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mentorId || !hasPhoto) {
+      setBlobUrl(null);
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    api
+      .get(ENDPOINTS.USER_PHOTO(mentorId), { responseType: "blob" })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [mentorId, hasPhoto]);
+
+  return blobUrl;
+}
+
 export default function PackageCard({ pkg, onClick }: { pkg: PackageItem; onClick: () => void }) {
   const name = pkg.mentor?.fullname || "Unknown";
   const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
-  const photoUrl = pkg.mentor?.profilePhoto
-    ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${pkg.mentor.profilePhoto}`
-    : null;
+  const photoUrl = useMentorPhoto(pkg.mentor?._id, !!pkg.mentor?.profilePhoto);
   const ratingCount = pkg.mentor?.ratingCount ?? 0;
   const averageRating = pkg.mentor?.averageRating ?? 0;
 
