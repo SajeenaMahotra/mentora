@@ -141,7 +141,7 @@ export const authService = {
           user.email,
           "Mentora account locked",
           `Your account was locked after ${MAX_FAILED_ATTEMPTS} failed login attempts.\n` +
-          `Unlock it here: ${process.env.CLIENT_URL}/unlock-account?token=${token}\n` +
+          `Unlock it here: ${env.CLIENT_URL}/unlock-account?token=${token}\n` +
           `This link expires in 1 hour.`
         );
 
@@ -440,7 +440,7 @@ export const authService = {
       await sendMail(
         user.email,
         "Reset your Mentora password",
-        `Reset your password here: ${process.env.CLIENT_URL}/reset-password?token=${token}\n` +
+        `Reset your password here: ${env.CLIENT_URL}/reset-password?token=${token}\n` +
         `This link expires in 1 hour. If you didn't request this, ignore this email.`
       );
 

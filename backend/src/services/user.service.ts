@@ -16,6 +16,7 @@ import { generateToken, hashToken } from "../utils/token.util";
 import { sendMail } from "../utils/mailer.util";
 import fs from "fs";
 import path from "path";
+import { env } from "../config/env";
 
 const EMAIL_VERIFY_TTL_MS = 60 * 60 * 1000;
 
@@ -108,7 +109,7 @@ export const userService = {
     await sendMail(
       dto.newEmail,
       "Verify your new Mentora email",
-      `Confirm your new email here: ${process.env.CLIENT_URL}/verify-email?token=${token}\n` +
+      `Confirm your new email here: ${env.CLIENT_URL}/verify-email?token=${token}\n` +
         `This link expires in 1 hour.`
     );
 
