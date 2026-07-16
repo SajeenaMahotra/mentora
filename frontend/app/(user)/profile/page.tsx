@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto, exportMyData } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { useAuth } from "@/context/authContext";
+import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 interface Account {
   fullname: string;
@@ -12,10 +14,47 @@ interface Account {
   profilePhoto: string | null;
 }
 
+// --- NEW: fetches the current user's own photo through the authenticated API
+// (cookie sent automatically) and turns it into a blob URL, instead of pointing
+// <img> straight at the backend's static file path, which the CORP/same-site
+// policy blocks.
+function useOwnPhoto(hasPhoto: boolean, refreshKey: number) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPhoto) {
+      setBlobUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    api
+      .get(ENDPOINTS.ME_PHOTO, { responseType: "blob" })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+    // refreshKey changes after a successful upload, forcing a re-fetch of the new photo.
+  }, [hasPhoto, refreshKey]);
+
+  return blobUrl;
+}
+
 export default function LearnerSettingsPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
 
   const [fullname, setFullname] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -43,6 +82,8 @@ export default function LearnerSettingsPage() {
 
   const [exporting, setExporting] = useState(false);
 
+  const ownPhoto = useOwnPhoto(!!account?.profilePhoto, photoRefreshKey);
+
   useEffect(() => {
     getMe().then((res) => {
       if (res.success) {
@@ -62,9 +103,7 @@ export default function LearnerSettingsPage() {
     toast.success("Name updated");
     setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
     if (user) {
-      const updated = { ...user, fullname: fullname.trim() };
-      setUser(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      setUser({ ...user, fullname: fullname.trim() });
     }
   } else toast.error(res.message);
   setSavingName(false);
@@ -144,10 +183,10 @@ export default function LearnerSettingsPage() {
     toast.success("Photo updated");
     setAccount((prev) => (prev ? { ...prev, profilePhoto: res.data.profilePhoto } : prev));
     if (user) {
-      const updated = { ...user, profilePhoto: res.data.profilePhoto };
-      setUser(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      setUser({ ...user, profilePhoto: res.data.profilePhoto });
     }
+    // Force useOwnPhoto to re-fetch the newly uploaded photo instead of showing a cached blob.
+    setPhotoRefreshKey((k) => k + 1);
   } else {
     toast.error(res.message);
     setPhotoPreview(null);
@@ -184,9 +223,9 @@ export default function LearnerSettingsPage() {
           <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-2xl overflow-hidden flex-shrink-0">
             {photoPreview ? (
               <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-            ) : account?.profilePhoto ? (
+            ) : ownPhoto ? (
               <img
-                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${account.profilePhoto}`}
+                src={ownPhoto}
                 className="w-full h-full object-cover"
                 alt="profile"
               />

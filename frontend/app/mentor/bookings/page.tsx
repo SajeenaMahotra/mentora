@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Calendar, Package as PackageIcon, Check, X } from "lucide-react";
 import StatusBadge from "../../../components/StatusBadge";
 import MessageLearnerButton from "@/components/MessageLearnerButton";
+import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 interface Booking {
   _id: string;
@@ -24,6 +26,53 @@ const TABS = [
   { key: "paid", label: "Paid" },
   { key: "completed", label: "Completed" },
 ] as const;
+
+// --- NEW: fetches a learner's photo through the authenticated API (cookie sent
+// automatically) and turns it into a blob URL, instead of pointing <img> straight
+// at the backend's static file path, which the CORP/same-site policy blocks.
+// Must be called from its own component (one call per row), never inside a .map()
+// loop, since hooks must run in the same order on every render.
+function useLearnerPhoto(learnerId: string | undefined, hasPhoto: boolean) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!learnerId || !hasPhoto) {
+      setBlobUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    api
+      .get(ENDPOINTS.USER_PHOTO(learnerId), { responseType: "blob" })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [learnerId, hasPhoto]);
+
+  return blobUrl;
+}
+
+function LearnerAvatar({ learner }: { learner?: { _id: string; fullname: string; profilePhoto?: string | null } }) {
+  const photo = useLearnerPhoto(learner?._id, !!learner?.profilePhoto);
+  const initials = (learner?.fullname || "L").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+
+  return (
+    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0 overflow-hidden">
+      {photo ? <img src={photo} className="w-full h-full object-cover" alt="" /> : initials}
+    </div>
+  );
+}
 
 export default function MentorBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -80,9 +129,6 @@ export default function MentorBookingsPage() {
     }
   };
 
-  const photoUrl = (photo?: string | null) =>
-    photo ? `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${photo}` : null;
-
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Booking Requests</h1>
@@ -115,15 +161,11 @@ export default function MentorBookingsPage() {
       ) : (
         <div className="space-y-4">
           {bookings.map((b) => {
-            const photo = photoUrl(b.learner?.profilePhoto);
-            const initials = (b.learner?.fullname || "L").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
             const isActing = actingOn === b._id;
             return (
               <div key={b._id} className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm flex-shrink-0 overflow-hidden">
-                    {photo ? <img src={photo} className="w-full h-full object-cover" alt="" /> : initials}
-                  </div>
+                  <LearnerAvatar learner={b.learner} />
                   <div>
                     <p className="font-semibold text-slate-900">{b.learner?.fullname || "Learner"}</p>
                     <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
