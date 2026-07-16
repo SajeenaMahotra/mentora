@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AuthProvider>
           <ChatProvider>
-            {children}
+             <main>{children}</main>
             <Toaster position="top-right" richColors expand={false} duration={3000} />
           </ChatProvider>
         </AuthProvider>

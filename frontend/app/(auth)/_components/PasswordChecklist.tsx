@@ -18,7 +18,7 @@ export default function PasswordChecklist({ password }: PasswordChecklistProps) 
       {rules.map((rule) => {
         const passed = rule.test(password);
         return (
-          <li key={rule.label} className={`flex items-center gap-1.5 text-xs ${passed ? "text-green-600" : "text-slate-400"}`}>
+          <li key={rule.label} className={`flex items-center gap-1.5 text-xs ${passed ? "text-green-600" : "text-slate-600"}`}>
             {passed ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
             {rule.label}
           </li>

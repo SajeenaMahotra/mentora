@@ -3,7 +3,7 @@ import Logo from "@/components/Logo";
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen grid grid-cols-1 md:grid-cols-2">
-      <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 p-12 text-white">
+      <div aria-hidden="true" className="hidden md:flex flex-col justify-between bg-gradient-to-br from-slate-900 via-blue-950 to-blue-900 p-12 text-white">
         <Logo dark />
         <div>
           <blockquote className="text-2xl font-light leading-relaxed text-slate-200 mb-4">
