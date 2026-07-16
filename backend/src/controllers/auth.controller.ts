@@ -1,10 +1,23 @@
 import { Request, Response, NextFunction } from "express";
 import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema, disableMfaSchema, forceChangePasswordSchema } from "../dtos/user.dto";
 import { authService } from "../services/auth.service";
+import { isProd } from "../config/env";
 
 function getContext(req: Request) {
   return { ip: req.ip, userAgent: req.headers["user-agent"] };
 }
+
+// --- NEW: shared cookie options. httpOnly blocks JS access (mitigates XSS token theft),
+// SameSite=strict blocks the cookie being sent on cross-site requests (mitigates CSRF),
+// secure restricts transmission to HTTPS in production.
+const AUTH_COOKIE_NAME = "token";
+const AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: "strict" as const,
+  maxAge: 15 * 60 * 1000, // matches the 15-minute access token expiry
+  path: "/",
+};
 
 export const authController = {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -36,7 +49,6 @@ export const authController = {
         });
       }
 
-      // --- NEW: password expired, block full login, hand back a temp token instead.
       if (result.passwordChangeRequired) {
         return res.status(200).json({
           success: true,
@@ -46,11 +58,13 @@ export const authController = {
         });
       }
 
+      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
+      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+
       res.status(200).json({
         success: true,
         message: "Welcome back!",
         data: result.data,
-        token: result.token,
       });
     } catch (err) {
       next(err);
@@ -86,7 +100,6 @@ export const authController = {
       const dto = mfaLoginVerifySchema.parse(req.body);
       const result = await authService.verifyMfaLogin(dto, getContext(req));
 
-      // --- NEW: password expired after MFA succeeded, block full login, hand back a temp token.
       if (result.passwordChangeRequired) {
         return res.status(200).json({
           success: true,
@@ -96,18 +109,25 @@ export const authController = {
         });
       }
 
-      res.status(200).json({ success: true, message: "Welcome back!", data: result.data, token: result.token });
+      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
+      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+
+      res.status(200).json({ success: true, message: "Welcome back!", data: result.data });
     } catch (err) {
       next(err);
     }
   },
 
-  // --- NEW: final step after passwordChangeRequired:true from login or mfa/login-verify.
+  // final step after passwordChangeRequired:true from login or mfa/login-verify.
   async forceChangePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const dto = forceChangePasswordSchema.parse(req.body);
       const result = await authService.forceChangePassword(dto, getContext(req));
-      res.status(200).json({ success: true, message: "Password updated. Welcome back!", data: result.data, token: result.token });
+
+      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
+      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+
+      res.status(200).json({ success: true, message: "Password updated. Welcome back!", data: result.data });
     } catch (err) {
       next(err);
     }
@@ -167,6 +187,11 @@ export const authController = {
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await authService.logout(req.user!.id, getContext(req));
+
+      // --- NEW: clear the auth cookie. Options must match what was used to set it
+      // (path, sameSite) or some browsers won't clear it.
+      res.clearCookie(AUTH_COOKIE_NAME, { path: "/", sameSite: "strict", httpOnly: true, secure: isProd });
+
       res.status(200).json({ success: true, message: result.message });
     } catch (err) {
       next(err);

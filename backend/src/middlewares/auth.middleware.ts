@@ -7,15 +7,17 @@ import { hashUserAgent } from "../utils/crypto.util";
 
 export async function protect(req: Request, res: Response, next: NextFunction) {
   try {
-    const header = req.headers.authorization;
-    if (!header || !header.startsWith("Bearer ")) {
-      throw new UnauthorizedError("Missing or invalid authorization header");
+    // --- CHANGED: token now comes from the httpOnly cookie, not the Authorization header.
+    const token = req.cookies?.token;
+    if (!token) {
+      throw new UnauthorizedError("Missing or invalid session");
     }
 
-    const token = header.split(" ")[1];
     const payload = verifyAccessToken(token);
 
-    const user = await User.findById(payload.sub).select("+tokenValidAfter +sessionUserAgentHash status isDeleted");
+    const user = await User.findById(payload.sub).select(
+      "+tokenValidAfter +sessionUserAgentHash status isDeleted"
+    );
     if (!user || user.isDeleted) {
       throw new UnauthorizedError("Invalid or expired token");
     }
