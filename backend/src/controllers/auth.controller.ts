@@ -14,7 +14,7 @@ const AUTH_COOKIE_NAME = "token";
 const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProd,
-  sameSite: "strict" as const,
+  sameSite: "lax" as const,
   maxAge: 15 * 60 * 1000, // matches the 15-minute access token expiry
   path: "/",
 };
@@ -190,7 +190,7 @@ export const authController = {
 
       // --- NEW: clear the auth cookie. Options must match what was used to set it
       // (path, sameSite) or some browsers won't clear it.
-      res.clearCookie(AUTH_COOKIE_NAME, { path: "/", sameSite: "strict", httpOnly: true, secure: isProd });
+      res.clearCookie(AUTH_COOKIE_NAME, { path: "/", sameSite: "lax", httpOnly: true, secure: isProd });
 
       res.status(200).json({ success: true, message: result.message });
     } catch (err) {
