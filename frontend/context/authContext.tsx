@@ -18,7 +18,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (token: string, userData: User) => void;
+  // --- CHANGED: no longer takes a token — the token lives in an httpOnly cookie
+  // the browser manages automatically, the frontend never sees it.
+  login: (userData: User) => void;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -32,20 +34,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem("token");
-      const userData = localStorage.getItem("user");
-      if (token && userData) {
-        setUser(JSON.parse(userData));
+    // --- CHANGED: no token in localStorage to read anymore. Instead, ask the
+    // backend "who am I" — the httpOnly cookie is sent automatically, and if it's
+    // valid the backend returns the current user; if not, this 401s and we just
+    // stay logged out.
+    async function checkSession() {
+      try {
+        const res = await api.get(ENDPOINTS.ME);
+        setUser(res.data.data);
         setIsAuthenticated(true);
+      } catch {
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
-    } catch { }
-    setLoading(false);
+    }
+    checkSession();
   }, []);
 
-  const login = (token: string, userData: User) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
+  const login = (userData: User) => {
     setUser(userData);
     setIsAuthenticated(true);
 
@@ -62,14 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      // Clears the httpOnly cookie server-side.
       await api.post(ENDPOINTS.LOGOUT);
     } catch {
-      // Even if the server call fails (e.g. network issue, already-expired token),
-      // we still clear the local session below — logout should never get "stuck".
+      // Even if the server call fails (e.g. network issue, already-expired session),
+      // we still clear local state below — logout should never get "stuck".
     }
     disconnectSocket();
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
     setUser(null);
     setIsAuthenticated(false);
     router.push("/login");
