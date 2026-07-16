@@ -3,6 +3,7 @@ import { verifyAccessToken } from "../utils/jwt.util";
 import { UnauthorizedError, ForbiddenError } from "../errors/AppError";
 import { UserRole } from "../types/user.type";
 import User from "../models/user.model";
+import { hashUserAgent } from "../utils/crypto.util";
 
 export async function protect(req: Request, res: Response, next: NextFunction) {
   try {
@@ -14,7 +15,7 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
     const token = header.split(" ")[1];
     const payload = verifyAccessToken(token);
 
-    const user = await User.findById(payload.sub).select("+tokenValidAfter status isDeleted");
+    const user = await User.findById(payload.sub).select("+tokenValidAfter +sessionUserAgentHash status isDeleted");
     if (!user || user.isDeleted) {
       throw new UnauthorizedError("Invalid or expired token");
     }
@@ -25,6 +26,13 @@ export async function protect(req: Request, res: Response, next: NextFunction) {
       const issuedAt = payload.iat! * 1000; // JWT iat is in seconds
       if (issuedAt < user.tokenValidAfter.getTime()) {
         throw new UnauthorizedError("Session no longer valid");
+      }
+    }
+
+    if (user.sessionUserAgentHash) {
+      const currentHash = hashUserAgent(req.headers["user-agent"] || "");
+      if (currentHash !== user.sessionUserAgentHash) {
+        throw new UnauthorizedError("Session bound to a different device");
       }
     }
 

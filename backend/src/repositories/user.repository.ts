@@ -218,6 +218,10 @@ export const userRepository = {
     return User.findByIdAndUpdate(id, { tokenValidAfter: new Date() });
   },
 
+  setSessionUserAgent(id: string, hash: string) {
+    return User.findByIdAndUpdate(id, { sessionUserAgentHash: hash });
+  },
+
   findByIdWithPasswordAndMfa(id: string) {
     return User.findById(id).select("+password +mfaSecret +mfaRecoveryCodes +passwordHistory +passwordChangedAt");
   },

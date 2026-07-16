@@ -9,7 +9,7 @@ import {
   buildPasswordHistoryUpdate,
 } from "../utils/password.util";
 import { signAccessToken, signMfaTempToken, verifyMfaTempToken, signPasswordChangeTempToken, verifyPasswordChangeTempToken } from "../utils/jwt.util";
-import { encrypt, decrypt } from "../utils/crypto.util";
+import { encrypt, decrypt, hashUserAgent } from "../utils/crypto.util"; // NEW: hashUserAgent import
 import { generateToken, hashToken } from "../utils/token.util";
 import { sendMail } from "../utils/mailer.util";
 import {
@@ -226,6 +226,11 @@ export const authService = {
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
+    // --- NEW: bind this session to the requesting device's User-Agent.
+    if (ctx.userAgent) {
+      await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
+    }
+
     return {
       mfaRequired: false,
       passwordChangeRequired: false,
@@ -334,6 +339,11 @@ export const authService = {
     });
 
     const token = signAccessToken({ sub: user.id, role: user.role });
+
+    // --- NEW: bind this session to the requesting device's User-Agent.
+    if (ctx.userAgent) {
+      await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
+    }
 
     return {
       passwordChangeRequired: false,

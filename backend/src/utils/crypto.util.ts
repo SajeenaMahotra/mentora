@@ -18,3 +18,7 @@ export function decrypt(payload: string): string {
   const decrypted = Buffer.concat([decipher.update(Buffer.from(dataHex, "hex")), decipher.final()]);
   return decrypted.toString("utf8");
 }
+
+export function hashUserAgent(userAgent: string): string {
+  return crypto.createHash("sha256").update(userAgent).digest("hex");
+}

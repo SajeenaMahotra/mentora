@@ -39,7 +39,8 @@ export interface IUser extends Document {
   emailVerified: boolean;
   emailVerifyTokenHash?: string;
   emailVerifyExpires?: Date;
-  tokenValidAfter?: Date; // JWTs issued (iat) before this are rejected — used for immediate session invalidation on suspend/delete
+  tokenValidAfter?: Date;
+  sessionUserAgentHash?: string; // JWTs issued (iat) before this are rejected — used for immediate session invalidation on suspend/delete
 
   createdAt: Date;
   updatedAt: Date;
@@ -89,6 +90,7 @@ const userSchema = new Schema<IUser>(
     emailVerifyExpires: { type: Date, select: false },
 
     tokenValidAfter: { type: Date, select: false },
+    sessionUserAgentHash: { type: String, select: false },
   },
   { timestamps: true }
 );
