@@ -48,7 +48,27 @@ export const bookingService = {
   },
 
   async listForMentor(mentorId: string, query: ListBookingsQueryDto) {
-    return bookingRepository.findAllByMentor(mentorId, query);
+    const result = await bookingRepository.findAllByMentor(mentorId, query);
+
+    // --- NEW: guard against dangling learner references. Should never happen
+    // through normal app flow (users are soft-deleted, not removed — see
+    // userRepository.softDelete), but a learner document removed directly at
+    // the database level leaves bookings pointing at a user that no longer
+    // exists, and populate() returns null for that field. Filtering these out
+    // rather than returning them keeps the endpoint (and the frontend that
+    // reads booking.learner._id unconditionally) from crashing. The warning
+    // surfaces the data integrity issue instead of failing silently.
+    const validItems = result.items.filter((booking) => {
+      const isValid = !!booking.learner;
+      if (!isValid) {
+        logger.warn("Skipping booking with missing learner reference", {
+          bookingId: booking._id?.toString(),
+        });
+      }
+      return isValid;
+    });
+
+    return { ...result, items: validItems };
   },
 
   async listForLearner(learnerId: string, query: ListBookingsQueryDto) {

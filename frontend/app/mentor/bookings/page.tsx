@@ -179,7 +179,7 @@ export default function MentorBookingsPage() {
                   <p className="text-sm font-bold text-slate-700">NPR {b.packagePrice}</p>
                   <div className="flex gap-2">
                     <MessageLearnerButton
-                      learnerId={b.learner!._id}
+                      learnerId={b.learner?._id ?? ""}
                       learnerFullname={b.learner?.fullname || "Learner"}
                       learnerPhoto={b.learner?.profilePhoto ?? undefined}
                     />

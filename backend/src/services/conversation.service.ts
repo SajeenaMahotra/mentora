@@ -1,10 +1,10 @@
-// conversation.service.ts
 import { conversationRepository } from "../repositories/conversation.repository";
 import { userRepository } from "../repositories/user.repository";
 import { messageRepository } from "../repositories/message.repository";
 import { ForbiddenError, ValidationError } from "../errors/AppError";
 import { NotFoundError } from "../errors/AppError";
 import { IConversation } from "../models/conversation.model";
+import logger from "../config/logger";
 
 export const conversationService = {
   // Learner-only. Route already applies restrictTo("learner"), but this
@@ -43,8 +43,28 @@ export const conversationService = {
   async listConversations(userId: string) {
     const conversations = await conversationRepository.findForUser(userId);
 
+    // --- NEW: guard against dangling learner/mentor references. This should
+    // never happen through normal app flow (users are soft-deleted, not
+    // removed — see userRepository.softDelete), but a document removed
+    // directly at the database level (e.g. manual cleanup during dev/testing)
+    // leaves conversations pointing at a user that no longer exists, and
+    // populate() returns null for that field. Skipping these rather than
+    // crashing keeps the endpoint usable; the warning log surfaces the data
+    // integrity issue so it can be investigated instead of failing silently.
+    const validConversations = conversations.filter((conversation) => {
+      const isValid = !!conversation.learner && !!conversation.mentor;
+      if (!isValid) {
+        logger.warn("Skipping conversation with missing participant", {
+          conversationId: conversation._id?.toString(),
+          hasLearner: !!conversation.learner,
+          hasMentor: !!conversation.mentor,
+        });
+      }
+      return isValid;
+    });
+
     return Promise.all(
-      conversations.map(async (conversation) => {
+      validConversations.map(async (conversation) => {
         const other =
           conversation.learner._id.toString() === userId ? conversation.mentor : conversation.learner;
 
