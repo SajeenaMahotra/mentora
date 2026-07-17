@@ -24,7 +24,10 @@ import { stripeWebhook } from "./controllers/webhook.controller";
 export function createApp(): Application {
   const app = express();
 
-  app.set("trust proxy", 1);
+  // No reverse proxy sits in front of this app in this deployment. Trusting
+// X-Forwarded-For here would let clients spoof their own IP, defeating
+// IP-based rate limiting and lockout tracking (recordIpFailure/isIpBlocked).
+  app.set("trust proxy", false);
 
   app.use(
     helmet({
