@@ -101,4 +101,21 @@ export const userController = {
       next(err);
     }
   },
+
+  // --- NEW: resolves "me" to the authenticated user's own id server-side, instead of
+  // relying on the generic /:id/photo route (which was casting the literal string
+  // "me" to an ObjectId and throwing a CastError, since Express matched "me" as
+  // the :id param before this route existed).
+  async getMyPhoto(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await User.findById(req.user!.id).select("profilePhoto");
+      if (!user || !user.profilePhoto) {
+        return res.status(404).json({ success: false, message: "Photo not found" });
+      }
+      const filePath = path.join(process.cwd(), "uploads", "profile-photos", user.profilePhoto);
+      res.sendFile(filePath);
+    } catch (err) {
+      next(err);
+    }
+  },
 };
