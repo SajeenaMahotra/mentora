@@ -3,6 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto, exportMyData } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { useAuth } from "@/context/authContext";
+import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 interface Account {
   fullname: string;
@@ -12,10 +14,46 @@ interface Account {
   profilePhoto: string | null;
 }
 
+// --- NEW: fetches the current user's own photo through the authenticated API
+// (cookie sent automatically) and turns it into a blob URL, instead of pointing
+// <img> straight at the backend's static file path, which requires auth now
+// and is blocked by the CORP/same-site policy for a bare <img src>.
+function useOwnPhoto(hasPhoto: boolean, refreshKey: number) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPhoto) {
+      setBlobUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    api
+      .get(ENDPOINTS.ME_PHOTO, { responseType: "blob" })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [hasPhoto, refreshKey]);
+
+  return blobUrl;
+}
+
 export default function MentorSettingsPage() {
   const [account, setAccount] = useState<Account | null>(null);
   const { user, setUser } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
 
   const [fullname, setFullname] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -27,10 +65,16 @@ export default function MentorSettingsPage() {
   const [pw, setPw] = useState({ currentPassword: "", password: "", confirmPassword: "" });
   const [savingPw, setSavingPw] = useState(false);
 
-  const [mfaStep, setMfaStep] = useState<"idle" | "setup" | "verify">("idle");
+  // --- NEW: "recovery-codes" is a distinct step shown right after successful
+  // verify-setup, before returning to idle. The user must explicitly
+  // acknowledge they've saved the codes to leave this step.
+  const [mfaStep, setMfaStep] = useState<"idle" | "setup" | "verify" | "recovery-codes">("idle");
   const [mfaData, setMfaData] = useState<{ qrCodeDataUrl?: string; secret?: string } | null>(null);
   const [mfaCode, setMfaCode] = useState("");
   const [mfaLoading, setMfaLoading] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [codesCopied, setCodesCopied] = useState(false);
+  const [confirmSaved, setConfirmSaved] = useState(false);
 
   const [disableStep, setDisableStep] = useState(false);
   const [disablePw, setDisablePw] = useState("");
@@ -42,6 +86,8 @@ export default function MentorSettingsPage() {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [exporting, setExporting] = useState(false);
+
+  const ownPhoto = useOwnPhoto(!!account?.profilePhoto, photoRefreshKey);
 
   useEffect(() => {
     getMe().then((res) => {
@@ -62,9 +108,7 @@ export default function MentorSettingsPage() {
     toast.success("Name updated");
     setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
     if (user) {
-      const updated = { ...user, fullname: fullname.trim() };
-      setUser(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      setUser({ ...user, fullname: fullname.trim() });
     }
   } else toast.error(res.message);
   setSavingName(false);
@@ -110,13 +154,62 @@ export default function MentorSettingsPage() {
     setMfaLoading(true);
     const res = await verifyMfaSetup(mfaCode);
     if (res.success) {
-      toast.success("Two-factor authentication enabled");
       setAccount((prev) => (prev ? { ...prev, mfaEnabled: true } : prev));
-      setMfaStep("idle");
       setMfaCode("");
       setMfaData(null);
+      // --- NEW: the backend returns the plaintext recovery codes exactly once,
+      // in this response. If we don't capture and display them now, they're
+      // gone forever (only hashes are stored server-side) and the account's
+      // MFA recovery path becomes non-functional.
+      const codes: string[] | undefined = res.data?.recoveryCodes;
+      if (codes && codes.length > 0) {
+        setRecoveryCodes(codes);
+        setMfaStep("recovery-codes");
+      } else {
+        toast.success("Two-factor authentication enabled");
+        setMfaStep("idle");
+      }
     } else toast.error(res.message);
     setMfaLoading(false);
+  };
+
+  const handleCopyRecoveryCodes = async () => {
+    if (!recoveryCodes) return;
+    try {
+      await navigator.clipboard.writeText(recoveryCodes.join("\n"));
+      setCodesCopied(true);
+      toast.success("Recovery codes copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy automatically — please copy them manually");
+    }
+  };
+
+  const handleDownloadRecoveryCodes = () => {
+    if (!recoveryCodes) return;
+    const blob = new Blob(
+      [`Mentora recovery codes\nGenerated: ${new Date().toISOString()}\nEach code can only be used once.\n\n${recoveryCodes.join("\n")}\n`],
+      { type: "text/plain" }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mentora-recovery-codes.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFinishRecoveryCodes = () => {
+    if (!confirmSaved) {
+      toast.error("Please confirm you've saved your recovery codes first");
+      return;
+    }
+    toast.success("Two-factor authentication enabled");
+    setRecoveryCodes(null);
+    setCodesCopied(false);
+    setConfirmSaved(false);
+    setMfaStep("idle");
   };
 
   const handleDisableMfa = async () => {
@@ -144,10 +237,9 @@ export default function MentorSettingsPage() {
     toast.success("Photo updated");
     setAccount((prev) => (prev ? { ...prev, profilePhoto: res.data.profilePhoto } : prev));
     if (user) {
-      const updated = { ...user, profilePhoto: res.data.profilePhoto };
-      setUser(updated);
-      localStorage.setItem("user", JSON.stringify(updated));
+      setUser({ ...user, profilePhoto: res.data.profilePhoto });
     }
+    setPhotoRefreshKey((k) => k + 1);
   } else {
     toast.error(res.message);
     setPhotoPreview(null);
@@ -184,9 +276,9 @@ export default function MentorSettingsPage() {
           <div className="w-20 h-20 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-2xl overflow-hidden flex-shrink-0">
             {photoPreview ? (
               <img src={photoPreview} className="w-full h-full object-cover" alt="preview" />
-            ) : account?.profilePhoto ? (
+            ) : ownPhoto ? (
               <img
-                src={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${account.profilePhoto}`}
+                src={ownPhoto}
                 className="w-full h-full object-cover"
                 alt="profile"
               />
@@ -303,7 +395,64 @@ export default function MentorSettingsPage() {
           Add an extra layer of security using an authenticator app.
         </p>
 
-        {account?.mfaEnabled ? (
+        {mfaStep === "recovery-codes" && recoveryCodes ? (
+          // --- NEW: recovery codes are shown exactly once, right after successful
+          // verify-setup. The backend will never return them again after this point
+          // (only hashes are stored), so this is the user's only chance to save them.
+          // Checked FIRST, ahead of account?.mfaEnabled, because handleVerifyMfa sets
+          // mfaEnabled=true immediately on success — if this check were lower in the
+          // chain, the Enabled/Disable branch would short-circuit past it entirely.
+          <div className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-amber-800 mb-1">Save your recovery codes</p>
+              <p className="text-xs text-amber-700">
+                Each code can only be used once, as a backup if you lose access to your
+                authenticator app. They will not be shown again after you leave this page.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono text-sm text-slate-800">
+              {recoveryCodes.map((c) => (
+                <div key={c} className="tracking-wider">{c}</div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCopyRecoveryCodes}
+                className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition"
+              >
+                {codesCopied ? "Copied" : "Copy codes"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadRecoveryCodes}
+                className="h-9 px-4 border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg transition"
+              >
+                Download .txt
+              </button>
+            </div>
+
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={confirmSaved}
+                onChange={(e) => setConfirmSaved(e.target.checked)}
+                className="mt-0.5"
+              />
+              I've saved these recovery codes somewhere safe
+            </label>
+
+            <button
+              onClick={handleFinishRecoveryCodes}
+              disabled={!confirmSaved}
+              className="h-9 px-4 bg-[#3B5EFF] hover:bg-[#2f4de0] disabled:opacity-60 text-white text-sm font-medium rounded-lg transition"
+            >
+              Done
+            </button>
+          </div>
+        ) : account?.mfaEnabled ? (
           disableStep ? (
             <div className="space-y-3">
               <input
@@ -357,7 +506,7 @@ export default function MentorSettingsPage() {
           >
             {mfaLoading ? "Starting..." : "Enable 2FA"}
           </button>
-        ) : (
+        ) : mfaStep === "verify" ? (
           <div className="space-y-4">
             {mfaData?.qrCodeDataUrl ? (
               <img src={mfaData.qrCodeDataUrl} alt="MFA QR code" className="w-40 h-40 rounded-xl border border-slate-100" />
@@ -383,7 +532,7 @@ export default function MentorSettingsPage() {
               {mfaLoading ? "Verifying..." : "Verify & enable"}
             </button>
           </div>
-        )}
+        ) : null}
       </section>
 
       <section className="bg-white rounded-2xl border border-slate-100 p-6">

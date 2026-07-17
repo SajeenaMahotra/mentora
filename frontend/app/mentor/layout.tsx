@@ -2,14 +2,52 @@
 import Link from "next/link";
 import { useAuth } from "@/context/authContext";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import NotificationBell from "@/components/NotificationBell";
 import LogoutConfirmDialog from "@/components/LogoutConfirmDialog";
+import api from "@/lib/api/axios";
+import { ENDPOINTS } from "@/lib/api/endpoints";
+
+// --- NEW: fetches the current user's own photo through the authenticated API
+// (cookie sent automatically) and turns it into a blob URL, instead of pointing
+// <img> straight at the backend's static file path, which requires auth now
+// and is blocked by the CORP/same-site policy for a bare <img src>.
+function useOwnPhoto(hasPhoto: boolean) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hasPhoto) {
+      setBlobUrl(null);
+      return;
+    }
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    api
+      .get(ENDPOINTS.ME_PHOTO, { responseType: "blob" })
+      .then((res) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(res.data);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [hasPhoto]);
+
+  return blobUrl;
+}
 
 export default function MentorLayout({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, loading, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const ownPhoto = useOwnPhoto(!!user?.profilePhoto);
 
   const isSetupPage = pathname === "/mentor/setup-profile";
 
@@ -85,11 +123,11 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
             className="mb-2 flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-white/5 transition-colors"
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-semibold text-indigo-300 overflow-hidden">
-              {user?.profilePhoto ? (
+              {ownPhoto ? (
                 <img
-                  src={`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5050"}/uploads/profile-photos/${user.profilePhoto}`}
+                  src={ownPhoto}
                   className="w-full h-full object-cover"
-                  alt={user.fullname}
+                  alt={user?.fullname}
                 />
               ) : (
                 user?.fullname

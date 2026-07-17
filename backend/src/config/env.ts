@@ -12,7 +12,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(5050),
   CLIENT_URL: z.string().url(), // primary origin (kept for backward compatibility)
-CLIENT_URLS: z.string().default(""), // comma-separated additional allowed origins, e.g. "http://192.168.159.1:3000"
+  CLIENT_URLS: z.string().default(""), // comma-separated additional allowed origins, e.g. "http://192.168.159.1:3000"
 
   MONGODB_URI: z.string().min(1),
 
