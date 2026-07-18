@@ -468,7 +468,7 @@ export default function MentorSettingsPage() {
                 onChange={(e) => setConfirmSaved(e.target.checked)}
                 className="mt-0.5"
               />
-              I've saved these recovery codes somewhere safe
+              I&apos;ve saved these recovery codes somewhere safe
             </label>
 
             <button
