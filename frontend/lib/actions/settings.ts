@@ -98,3 +98,20 @@ export async function exportMyData() {
     return { success: false, message: "Failed to export data" };
   }
 }
+
+
+export async function importMyData(file: File) {
+  try {
+    const text = await file.text();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return { success: false, message: "That file isn't valid JSON" };
+    }
+    const res = await api.post(ENDPOINTS.ME_IMPORT, parsed);
+    return { success: true, data: res.data.data, message: res.data.message };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to import data" };
+  }
+}

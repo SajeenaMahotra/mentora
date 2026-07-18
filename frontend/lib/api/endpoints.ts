@@ -12,6 +12,7 @@ export const ENDPOINTS = {
   FORCE_CHANGE_PASSWORD: "/auth/force-change-password",
   LOGOUT: "/auth/logout",
   ME_EXPORT: "/users/me/export",
+  ME_IMPORT: "/users/me/import",
 
   // User / profile
   ME: "/users/me",

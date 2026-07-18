@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto, exportMyData } from "@/lib/actions/settings";
+import { getMe, updateName, changePassword, changeEmail, setupMfa, verifyMfaSetup, disableMfa, uploadPhoto, exportMyData, importMyData } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { useAuth } from "@/context/authContext";
 import api from "@/lib/api/axios";
@@ -88,6 +88,10 @@ export default function LearnerSettingsPage() {
 
   const [exporting, setExporting] = useState(false);
 
+  // --- NEW: data import (GDPR Art. 20 portability counterpart to export).
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
   const ownPhoto = useOwnPhoto(!!account?.profilePhoto, photoRefreshKey);
 
   useEffect(() => {
@@ -102,18 +106,18 @@ export default function LearnerSettingsPage() {
   }, []);
 
   const handleSaveName = async () => {
-  if (!fullname.trim()) return toast.error("Name cannot be empty");
-  setSavingName(true);
-  const res = await updateName(fullname.trim());
-  if (res.success) {
-    toast.success("Name updated");
-    setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
-    if (user) {
-      setUser({ ...user, fullname: fullname.trim() });
-    }
-  } else toast.error(res.message);
-  setSavingName(false);
-};
+    if (!fullname.trim()) return toast.error("Name cannot be empty");
+    setSavingName(true);
+    const res = await updateName(fullname.trim());
+    if (res.success) {
+      toast.success("Name updated");
+      setAccount((prev) => (prev ? { ...prev, fullname: fullname.trim() } : prev));
+      if (user) {
+        setUser({ ...user, fullname: fullname.trim() });
+      }
+    } else toast.error(res.message);
+    setSavingName(false);
+  };
 
   const handleChangeEmail = async () => {
     if (!newEmail || !emailPassword) return toast.error("Fill in both fields");
@@ -230,26 +234,26 @@ export default function LearnerSettingsPage() {
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  setPhotoPreview(URL.createObjectURL(file));
-  setUploadingPhoto(true);
-  const res = await uploadPhoto(file);
-  if (res.success) {
-    toast.success("Photo updated");
-    setAccount((prev) => (prev ? { ...prev, profilePhoto: res.data.profilePhoto } : prev));
-    if (user) {
-      setUser({ ...user, profilePhoto: res.data.profilePhoto });
+    setPhotoPreview(URL.createObjectURL(file));
+    setUploadingPhoto(true);
+    const res = await uploadPhoto(file);
+    if (res.success) {
+      toast.success("Photo updated");
+      setAccount((prev) => (prev ? { ...prev, profilePhoto: res.data.profilePhoto } : prev));
+      if (user) {
+        setUser({ ...user, profilePhoto: res.data.profilePhoto });
+      }
+      // Force useOwnPhoto to re-fetch the newly uploaded photo instead of showing a cached blob.
+      setPhotoRefreshKey((k) => k + 1);
+    } else {
+      toast.error(res.message);
+      setPhotoPreview(null);
     }
-    // Force useOwnPhoto to re-fetch the newly uploaded photo instead of showing a cached blob.
-    setPhotoRefreshKey((k) => k + 1);
-  } else {
-    toast.error(res.message);
-    setPhotoPreview(null);
-  }
-  setUploadingPhoto(false);
-};
+    setUploadingPhoto(false);
+  };
 
   const handleExportData = async () => {
     setExporting(true);
@@ -257,6 +261,29 @@ export default function LearnerSettingsPage() {
     if (res.success) toast.success("Your data has been downloaded");
     else toast.error(res.message);
     setExporting(false);
+  };
+
+  // --- NEW: restores profile fields from a previously exported file. The backend
+  // whitelists fullname and bio only — role, email, bookings and reviews present
+  // in the uploaded file are ignored rather than applied, so a tampered export
+  // can't be used for privilege escalation or to fabricate transaction history.
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    const res = await importMyData(file);
+    if (res.success) {
+      toast.success(res.message || "Profile data imported");
+      setAccount((prev) => (prev ? { ...prev, fullname: res.data.fullname } : prev));
+      setFullname(res.data.fullname);
+      if (user) setUser({ ...user, fullname: res.data.fullname });
+    } else {
+      toast.error(res.message);
+    }
+    setImporting(false);
+    // Reset so selecting the same file again still fires onChange.
+    e.target.value = "";
   };
 
   if (loading) {
@@ -541,15 +568,35 @@ export default function LearnerSettingsPage() {
       <section className="bg-white rounded-2xl border border-slate-100 p-6">
         <h2 className="text-base font-semibold text-slate-900 mb-1">Your data</h2>
         <p className="text-sm text-slate-500 mb-4">
-          Download a copy of your profile, bookings, and reviews.
+          Download a copy of your profile, bookings, and reviews, or restore your profile from a previous export.
         </p>
-        <button
-          onClick={handleExportData}
-          disabled={exporting}
-          className="h-9 px-4 border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-medium rounded-lg transition"
-        >
-          {exporting ? "Preparing..." : "Download my data"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportData}
+            disabled={exporting}
+            className="h-9 px-4 border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-medium rounded-lg transition"
+          >
+            {exporting ? "Preparing..." : "Download my data"}
+          </button>
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            className="h-9 px-4 border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-medium rounded-lg transition"
+          >
+            {importing ? "Importing..." : "Import my data"}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">
+          Only your name and bio are restored. Bookings, reviews, and account role are never imported.
+        </p>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleImportData}
+        />
       </section>
     </div>
   );
