@@ -1,4 +1,4 @@
-import { ChangePasswordDto, UpdateProfileDto, ChangeEmailDto, VerifyEmailDto } from "../dtos/user.dto";
+import { ChangePasswordDto, UpdateProfileDto, ChangeEmailDto, VerifyEmailDto, ImportDataDto } from "../dtos/user.dto";
 import { userRepository } from "../repositories/user.repository";
 import { UnauthorizedError, ValidationError, ConflictError, ForbiddenError } from "../errors/AppError";
 import {
@@ -17,6 +17,7 @@ import { sendMail } from "../utils/mailer.util";
 import fs from "fs";
 import path from "path";
 import { env } from "../config/env";
+import { auditLogService } from "./audit-log.service";
 
 const EMAIL_VERIFY_TTL_MS = 60 * 60 * 1000;
 
@@ -195,5 +196,29 @@ export const userService = {
         createdAt: r.createdAt,
       })),
     };
+  },
+
+   async importUserData(userId: string, dto: ImportDataDto) {
+    const user = await userRepository.findById(userId);
+    if (!user) throw new ValidationError("User not found");
+
+    const updates: UpdateProfileDto = {};
+    if (dto.profile.fullname !== undefined) updates.fullname = dto.profile.fullname;
+    if (dto.profile.bio !== undefined) updates.bio = dto.profile.bio;
+
+    const updated = await userRepository.updateProfile(userId, updates);
+    if (!updated) throw new ValidationError("User not found");
+
+    await auditLogService.log({
+      actor: userId,
+      action: "DATA_IMPORTED",
+      metadata: { fields: Object.keys(updates) },
+    });
+
+    if (user.role === "mentor") {
+      await this.checkAndUpdateProfileSetup(userId);
+    }
+
+    return toProfileResponse(updated);
   },
 };

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { updateProfileSchema, changePasswordSchema, changeEmailSchema, verifyEmailSchema, updateSubjectsSchema } from "../dtos/user.dto";
+import { updateProfileSchema, changePasswordSchema, changeEmailSchema, verifyEmailSchema, updateSubjectsSchema, importDataSchema } from "../dtos/user.dto";
 import { userService } from "../services/user.service";
 import { ValidationError } from "../errors/AppError";
 import User from "../models/user.model";
@@ -83,6 +83,17 @@ export const userController = {
       const data = await userService.exportUserData(req.user!.id);
       res.setHeader("Content-Disposition", `attachment; filename="mentora-data-export.json"`);
       res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // --- NEW: privacy/data-portability import. Counterpart to exportData.
+  async importData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = importDataSchema.parse(req.body);
+      const data = await userService.importUserData(req.user!.id, dto);
+      res.status(200).json({ success: true, message: "Profile data imported", data });
     } catch (err) {
       next(err);
     }

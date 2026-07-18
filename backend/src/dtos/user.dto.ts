@@ -111,3 +111,17 @@ export const forceChangePasswordSchema = z
     path: ["confirmPassword"],
   });
 export type ForceChangePasswordDto = z.infer<typeof forceChangePasswordSchema>;
+
+
+export const importDataSchema = z
+  .object({
+    profile: z.object({
+      fullname: z.string().trim().min(2).max(100).optional(),
+      bio: z.string().trim().max(1000).optional(),
+    }),
+  })
+  .refine((d) => d.profile.fullname !== undefined || d.profile.bio !== undefined, {
+    message: "Import file contains no restorable profile fields",
+  });
+
+export type ImportDataDto = z.infer<typeof importDataSchema>;
