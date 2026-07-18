@@ -61,7 +61,14 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
-  ADMIN_IP_ALLOWLIST: z.string().default(""), // comma-separated IPs, e.g. "203.0.113.5,203.0.113.6"
+  ADMIN_IP_ALLOWLIST: z.string().default(""),
+  
+  // --- NEW: paths to the local TLS certificate and key, relative to the backend
+  // working directory. Optional: if unset the server falls back to HTTP so the
+  // app still runs for anyone who clones the repo without generating certs
+  // (certs/ is gitignored, since private keys must never be committed).
+  TLS_CERT_PATH: z.string().optional(),
+  TLS_KEY_PATH: z.string().optional(),// comma-separated IPs, e.g. "203.0.113.5,203.0.113.6"
 });
 
 const parsed = envSchema.safeParse(process.env);
