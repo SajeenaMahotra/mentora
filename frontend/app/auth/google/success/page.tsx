@@ -10,8 +10,8 @@ function GoogleSuccessContent() {
   useEffect(() => {
     const token = searchParams.get("token");
     const userStr = searchParams.get("user");
-    if (token && userStr) {
-      try { login(token, JSON.parse(decodeURIComponent(userStr))); }
+    if (userStr) {
+      try { login(JSON.parse(decodeURIComponent(userStr))); }
       catch { window.location.href = "/login"; }
     } else {
       window.location.href = "/login";
