@@ -386,6 +386,13 @@ export const authService = {
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
+    // Bind this session to the requesting device's User-Agent, same as login
+    // and MFA login. Without this, sessions created via the password-expiry
+    // path are unbound or carry a stale hash from a previous login.
+    if (ctx.userAgent) {
+      await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
+    }
+
     return {
       token,
       data: {
