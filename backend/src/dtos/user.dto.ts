@@ -116,12 +116,13 @@ export type ForceChangePasswordDto = z.infer<typeof forceChangePasswordSchema>;
 export const importDataSchema = z
   .object({
     profile: z.object({
-      fullname: z.string().trim().min(2).max(100).optional(),
-      bio: z.string().trim().max(1000).optional(),
+      fullname: z.string().trim().min(2).max(100).nullish(),
+      bio: z.string().trim().max(1000).nullish(),
     }),
   })
-  .refine((d) => d.profile.fullname !== undefined || d.profile.bio !== undefined, {
-    message: "Import file contains no restorable profile fields",
-  });
+  .refine(
+    (d) => typeof d.profile.fullname === "string" || typeof d.profile.bio === "string",
+    { message: "Import file contains no restorable profile fields" }
+  );
 
 export type ImportDataDto = z.infer<typeof importDataSchema>;

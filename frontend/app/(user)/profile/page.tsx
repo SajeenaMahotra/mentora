@@ -588,7 +588,7 @@ export default function LearnerSettingsPage() {
           </button>
         </div>
         <p className="text-xs text-slate-400 mt-2">
-          Only your name and bio are restored. Bookings, reviews, and account role are never imported.
+          Only your name is restored. Bookings, reviews, and account role are never imported.
         </p>
         <input
           ref={importInputRef}

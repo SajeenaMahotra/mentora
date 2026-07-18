@@ -66,7 +66,7 @@ export const userService = {
     // best-effort cleanup of old file — don't fail the request if this errors
     if (oldPhoto) {
       const oldPath = path.join(UPLOAD_DIR, oldPhoto);
-      fs.unlink(oldPath, () => {});
+      fs.unlink(oldPath, () => { });
     }
 
     return toProfileResponse(user);
@@ -111,7 +111,7 @@ export const userService = {
       dto.newEmail,
       "Verify your new Mentora email",
       `Confirm your new email here: ${env.CLIENT_URL}/verify-email?token=${token}\n` +
-        `This link expires in 1 hour.`
+      `This link expires in 1 hour.`
     );
 
     return { message: "Email updated. Please check your new inbox to verify it." };
@@ -198,13 +198,13 @@ export const userService = {
     };
   },
 
-   async importUserData(userId: string, dto: ImportDataDto) {
+  async importUserData(userId: string, dto: ImportDataDto) {
     const user = await userRepository.findById(userId);
     if (!user) throw new ValidationError("User not found");
 
     const updates: UpdateProfileDto = {};
-    if (dto.profile.fullname !== undefined) updates.fullname = dto.profile.fullname;
-    if (dto.profile.bio !== undefined) updates.bio = dto.profile.bio;
+    if (typeof dto.profile.fullname === "string") updates.fullname = dto.profile.fullname;
+    if (typeof dto.profile.bio === "string") updates.bio = dto.profile.bio;
 
     const updated = await userRepository.updateProfile(userId, updates);
     if (!updated) throw new ValidationError("User not found");
