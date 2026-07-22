@@ -109,3 +109,13 @@ export async function unlockAccountAction(token: string) {
     return { success: false, message: err.response?.data?.message || "Failed" };
   }
 }
+
+
+export async function updateRoleAction(role: "learner" | "mentor") {
+  try {
+    const res = await api.patch(ENDPOINTS.ME_ROLE, { role });
+    return { success: true, data: res.data.data };
+  } catch (err: any) {
+    return { success: false, message: err.response?.data?.message || "Failed to update role" };
+  }
+}
