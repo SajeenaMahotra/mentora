@@ -117,6 +117,25 @@ export default function LoginPage() {
         </button>
       </form>
 
+      <div className="flex items-center gap-3 my-6">
+        <div className="flex-1 h-px bg-slate-200" />
+        <span className="text-xs text-slate-400 font-medium">OR</span>
+        <div className="flex-1 h-px bg-slate-200" />
+      </div>
+
+      <a
+        href={`${process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:5050"}/api/auth/google`}
+        className="w-full h-11 flex items-center justify-center gap-3 border-2 border-slate-200 hover:border-slate-300 rounded-xl font-semibold text-sm text-slate-700 transition"
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20">
+          <path fill="#4285F4" d="M19.6 10.23c0-.68-.06-1.36-.17-2H10v3.79h5.4a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.9-1.75 3-4.32 3-7.31Z" />
+          <path fill="#34A853" d="M10 20c2.7 0 4.96-.89 6.62-2.42l-3.23-2.5c-.9.6-2.05.96-3.39.96-2.6 0-4.8-1.76-5.6-4.12H1.06v2.59A10 10 0 0 0 10 20Z" />
+          <path fill="#FBBC05" d="M4.4 11.92a6 6 0 0 1 0-3.84V5.49H1.06a10 10 0 0 0 0 9.02l3.34-2.59Z" />
+          <path fill="#EA4335" d="M10 3.96c1.47 0 2.79.5 3.83 1.5l2.87-2.87A9.6 9.6 0 0 0 10 0 10 10 0 0 0 1.06 5.49L4.4 8.08C5.2 5.72 7.4 3.96 10 3.96Z" />
+        </svg>
+        Continue with Google
+      </a>
+
       <p className="mt-6 text-center text-sm text-slate-600">
         Don&apos;t have an account? <Link href="/role-selection" className="font-semibold text-blue-600 hover:underline">Create one</Link>
       </p>
