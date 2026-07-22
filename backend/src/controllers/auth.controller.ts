@@ -1,23 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import { registerSchema, loginSchema, mfaVerifySetupSchema, mfaLoginVerifySchema, unlockAccountSchema, forgotPasswordSchema, resetPasswordSchema, disableMfaSchema, forceChangePasswordSchema } from "../dtos/user.dto";
 import { authService } from "../services/auth.service";
-import { isProd } from "../config/env";
+import { env } from "../config/env";
+import { UnauthorizedError } from "../errors/AppError";
+import { setAuthCookie, clearAuthCookie } from "../utils/cookie.util";
 
 function getContext(req: Request) {
   return { ip: req.ip, userAgent: req.headers["user-agent"] };
 }
-
-// --- NEW: shared cookie options. httpOnly blocks JS access (mitigates XSS token theft),
-// SameSite=strict blocks the cookie being sent on cross-site requests (mitigates CSRF),
-// secure restricts transmission to HTTPS in production.
-const AUTH_COOKIE_NAME = "token";
-const AUTH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: "lax" as const,
-  maxAge: 15 * 60 * 1000, // matches the 15-minute access token expiry
-  path: "/",
-};
 
 export const authController = {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -58,8 +48,7 @@ export const authController = {
         });
       }
 
-      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
-      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+      setAuthCookie(res, result.token);
 
       res.status(200).json({
         success: true,
@@ -109,8 +98,7 @@ export const authController = {
         });
       }
 
-      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
-      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+      setAuthCookie(res, result.token);
 
       res.status(200).json({ success: true, message: "Welcome back!", data: result.data });
     } catch (err) {
@@ -124,8 +112,7 @@ export const authController = {
       const dto = forceChangePasswordSchema.parse(req.body);
       const result = await authService.forceChangePassword(dto, getContext(req));
 
-      // --- NEW: set the access token as an httpOnly cookie instead of returning it in the body.
-      res.cookie(AUTH_COOKIE_NAME, result.token, AUTH_COOKIE_OPTIONS);
+      setAuthCookie(res, result.token);
 
       res.status(200).json({ success: true, message: "Password updated. Welcome back!", data: result.data });
     } catch (err) {
@@ -188,11 +175,28 @@ export const authController = {
     try {
       const result = await authService.logout(req.user!.id, getContext(req));
 
-      // --- NEW: clear the auth cookie. Options must match what was used to set it
-      // (path, sameSite) or some browsers won't clear it.
-      res.clearCookie(AUTH_COOKIE_NAME, { path: "/", sameSite: "lax", httpOnly: true, secure: isProd });
+      clearAuthCookie(res);
 
       res.status(200).json({ success: true, message: result.message });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async googleCallback(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = req.googleAuthToken;
+      const user = req.googleAuthUser;
+      if (!token || !user) {
+        throw new UnauthorizedError("Google authentication failed");
+      }
+
+      setAuthCookie(res, token);
+
+      // Only the user object goes in the URL — never the token. The cookie
+      // above is the actual credential; the query param just lets the
+      // frontend populate its auth context without an extra round trip.
+      res.redirect(`${env.CLIENT_URL}/auth/google/success?user=${encodeURIComponent(JSON.stringify(user))}`);
     } catch (err) {
       next(err);
     }

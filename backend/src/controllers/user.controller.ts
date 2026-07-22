@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from "express";
-import { updateProfileSchema, changePasswordSchema, changeEmailSchema, verifyEmailSchema, updateSubjectsSchema, importDataSchema } from "../dtos/user.dto";
+import { updateProfileSchema, changePasswordSchema, changeEmailSchema, verifyEmailSchema, updateSubjectsSchema, importDataSchema, updateRoleSchema } from "../dtos/user.dto";
 import { userService } from "../services/user.service";
 import { ValidationError } from "../errors/AppError";
 import User from "../models/user.model";
 import path from "path";
+import { setAuthCookie } from "../utils/cookie.util";
 
 export const userController = {
   async getMe(req: Request, res: Response, next: NextFunction) {
@@ -125,6 +126,20 @@ export const userController = {
       }
       const filePath = path.join(process.cwd(), "uploads", "profile-photos", user.profilePhoto);
       res.sendFile(filePath);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+
+  async updateRole(req: Request, res: Response, next: NextFunction) {
+    try {
+      const dto = updateRoleSchema.parse(req.body);
+      const result = await userService.updateRole(req.user!.id, dto.role);
+
+      setAuthCookie(res, result.token);
+
+      res.status(200).json({ success: true, message: "Role updated", data: result.data });
     } catch (err) {
       next(err);
     }
