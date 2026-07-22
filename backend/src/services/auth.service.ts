@@ -9,7 +9,7 @@ import {
   buildPasswordHistoryUpdate,
 } from "../utils/password.util";
 import { signAccessToken, signMfaTempToken, verifyMfaTempToken, signPasswordChangeTempToken, verifyPasswordChangeTempToken } from "../utils/jwt.util";
-import { encrypt, decrypt, hashUserAgent } from "../utils/crypto.util"; // NEW: hashUserAgent import
+import { encrypt, decrypt, hashUserAgent } from "../utils/crypto.util";
 import { generateToken, hashToken } from "../utils/token.util";
 import { sendMail } from "../utils/mailer.util";
 import {
@@ -27,8 +27,8 @@ import { notificationService } from "./notification.service";
 const DUMMY_PASSWORD_HASH = "$2b$12$1XaJQ.EAvXE2SPWtQ21Wxutq.GWKQIA/OYuiHxQs5U.33ePQ5IEcK";
 
 const MAX_FAILED_ATTEMPTS = 5;
-const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const UNLOCK_TOKEN_TTL_MS = 60 * 60 * 1000;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 const PASSWORD_HISTORY_LIMIT = 5;
 
 interface RequestContext {
@@ -36,9 +36,38 @@ interface RequestContext {
   userAgent?: string;
 }
 
-// --- Password expiry check, shared by both the non-MFA and post-MFA login paths.
+type LoginResult =
+  | { mfaRequired: true; tempToken: string }
+  | { mfaRequired: false; passwordChangeRequired: true; tempToken: string }
+  | {
+      mfaRequired: false;
+      passwordChangeRequired: false;
+      token: string;
+      data: {
+        _id: string;
+        fullname: string;
+        email: string;
+        role: string;
+        isProfileSetup: boolean;
+      };
+    };
+
+type MfaLoginResult =
+  | { passwordChangeRequired: true; tempToken: string }
+  | {
+      passwordChangeRequired: false;
+      token: string;
+      data: {
+        _id: string;
+        fullname: string;
+        email: string;
+        role: string;
+        isProfileSetup: boolean;
+      };
+    };
+
 function isPasswordExpired(passwordChangedAt: Date | undefined): boolean {
-  if (!passwordChangedAt) return false; // legacy accounts predating this field — don't force expiry
+  if (!passwordChangedAt) return false;
   const expiryMs = env.PASSWORD_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   return Date.now() - passwordChangedAt.getTime() > expiryMs;
 }
@@ -71,11 +100,10 @@ export const authService = {
     };
   },
 
-  async login(dto: LoginDto, ctx: RequestContext = {}) {
+  async login(dto: LoginDto, ctx: RequestContext = {}): Promise<LoginResult> {
     const user = await userRepository.findByEmailWithPassword(dto.email);
     if (!user) {
       await comparePassword(dto.password, DUMMY_PASSWORD_HASH);
-      // --- NEW: track by IP, alert admins the moment this crosses the block threshold.
       if (ctx.ip) {
         const justBlocked = recordIpFailure(ctx.ip);
         if (justBlocked) {
@@ -125,9 +153,19 @@ export const authService = {
       throw new ForbiddenError("Account locked due to too many failed login attempts. Check your email to unlock, or contact an admin.");
     }
 
+    if (!user.password) {
+      await auditLogService.log({
+        actor: user.id,
+        action: "LOGIN_FAILED",
+        metadata: { reason: "no_local_password" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+      throw new UnauthorizedError();
+    }
+
     const passwordMatches = await comparePassword(dto.password, user.password);
     if (!passwordMatches) {
-      // --- NEW: track by IP, alert admins the moment this crosses the block threshold.
       let justBlocked = false;
       if (ctx.ip) justBlocked = recordIpFailure(ctx.ip);
 
@@ -153,7 +191,6 @@ export const authService = {
           userAgent: ctx.userAgent,
         });
 
-        // --- NEW: real-time alert to every admin the instant an account gets locked.
         await notificationService.alertAdmins({
           type: "security_alert",
           title: "Account locked",
@@ -190,7 +227,6 @@ export const authService = {
       throw new UnauthorizedError();
     }
 
-    // --- password confirmed correct — this IP just proved legitimate intent, clear its failure count.
     if (ctx.ip) clearIpFailures(ctx.ip);
 
     await userRepository.resetFailedAttempts(user.id);
@@ -226,7 +262,6 @@ export const authService = {
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
-    // --- NEW: bind this session to the requesting device's User-Agent.
     if (ctx.userAgent) {
       await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
     }
@@ -280,7 +315,7 @@ export const authService = {
     return { recoveryCodes };
   },
 
-  async verifyMfaLogin(dto: MfaLoginVerifyDto, ctx: RequestContext = {}) {
+  async verifyMfaLogin(dto: MfaLoginVerifyDto, ctx: RequestContext = {}): Promise<MfaLoginResult> {
     let payload;
     try {
       payload = verifyMfaTempToken(dto.tempToken);
@@ -340,7 +375,6 @@ export const authService = {
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
-    // --- NEW: bind this session to the requesting device's User-Agent.
     if (ctx.userAgent) {
       await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
     }
@@ -369,11 +403,17 @@ export const authService = {
     const user = await userRepository.findByIdWithPasswordAndMfa(payload.sub);
     if (!user) throw new UnauthorizedError();
 
+    if (!user.password) throw new UnauthorizedError();
+
     assertPasswordStrength(dto.password, [user.fullname, user.email]);
     await assertNoPasswordReuse(dto.password, user.password, user.passwordHistory);
 
     const newHash = await hashPassword(dto.password);
-    const updatedHistory = buildPasswordHistoryUpdate(user.password, user.passwordChangedAt, user.passwordHistory);
+    const updatedHistory = buildPasswordHistoryUpdate(
+      user.password,
+      user.passwordChangedAt ?? new Date(0),
+      user.passwordHistory
+    );
 
     await userRepository.updatePassword(user.id, newHash, updatedHistory);
 
@@ -386,9 +426,6 @@ export const authService = {
 
     const token = signAccessToken({ sub: user.id, role: user.role });
 
-    // Bind this session to the requesting device's User-Agent, same as login
-    // and MFA login. Without this, sessions created via the password-expiry
-    // path are unbound or carry a stale hash from a previous login.
     if (ctx.userAgent) {
       await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
     }
@@ -461,15 +498,12 @@ export const authService = {
   },
 
   async resetPassword(dto: ResetPasswordDto, ctx: RequestContext = {}) {
-    // Still need to read the user once, to run password-strength and
-    // reuse checks against their current password/history before we
-    // attempt the write. This read is NOT the security boundary anymore --
-    // it's purely to fetch data for validation. The actual "is this token
-    // still valid RIGHT NOW" check happens atomically inside
-    // resetPasswordWithToken() below, as part of the same operation that
-    // performs the write.
     const user = await userRepository.findByResetToken(hashToken(dto.token));
     if (!user) {
+      throw new ValidationError("Invalid or expired reset link");
+    }
+
+    if (!user.password) {
       throw new ValidationError("Invalid or expired reset link");
     }
 
@@ -477,13 +511,12 @@ export const authService = {
     await assertNoPasswordReuse(dto.password, user.password, user.passwordHistory);
 
     const newHash = await hashPassword(dto.password);
-    const updatedHistory = buildPasswordHistoryUpdate(user.password, user.passwordChangedAt, user.passwordHistory);
+    const updatedHistory = buildPasswordHistoryUpdate(
+      user.password,
+      user.passwordChangedAt ?? new Date(0),
+      user.passwordHistory
+    );
 
-    // Atomic check-and-consume. If a concurrent request already used this
-    // exact token (and cleared resetPasswordTokenHash) between our read
-    // above and this write, updated will be null -- even though our read
-    // a moment ago saw the token as valid. This is what actually closes
-    // the race window; the read above is just for validation data.
     const updated = await userRepository.resetPasswordWithToken(hashToken(dto.token), newHash, updatedHistory);
     if (!updated) {
       throw new ValidationError("Invalid or expired reset link");
@@ -503,6 +536,8 @@ export const authService = {
     const user = await userRepository.findByIdWithPasswordAndMfa(userId);
     if (!user) throw new UnauthorizedError();
     if (!user.mfaEnabled) throw new ValidationError("MFA is not enabled");
+
+    if (!user.password) throw new UnauthorizedError();
 
     const passwordMatches = await comparePassword(dto.currentPassword, user.password);
     if (!passwordMatches) throw new UnauthorizedError("Current password is incorrect");
@@ -532,7 +567,6 @@ export const authService = {
     return { message: "Two-factor authentication disabled." };
   },
 
-
   async logout(userId: string, ctx: RequestContext = {}) {
     await userRepository.logout(userId);
 
@@ -544,5 +578,64 @@ export const authService = {
     });
 
     return { message: "Logged out successfully." };
+  },
+
+  async googleLogin(profile: { googleId: string; email: string; fullname: string }, ctx: RequestContext = {}) {
+    let user = await userRepository.findByGoogleId(profile.googleId);
+    let isNewUser = false;
+
+    if (!user) {
+      const existingLocal = await userRepository.findByEmail(profile.email);
+      if (existingLocal) {
+        throw new ConflictError(
+          "An account already exists with this email. Please log in with your password instead."
+        );
+      }
+
+      user = await userRepository.createGoogleUser({
+        fullname: profile.fullname,
+        email: profile.email,
+        googleId: profile.googleId,
+      });
+      isNewUser = true;
+
+      await auditLogService.log({
+        actor: user.id,
+        action: "REGISTER",
+        metadata: { via: "google" },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+    }
+
+    if (user.status !== "active") {
+      throw new ForbiddenError(`Account is ${user.status}`);
+    }
+
+    await auditLogService.log({
+      actor: user.id,
+      action: "LOGIN_SUCCESS",
+      metadata: { via: "google" },
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+
+    const token = signAccessToken({ sub: user.id, role: user.role });
+
+    if (ctx.userAgent) {
+      await userRepository.setSessionUserAgent(user.id, hashUserAgent(ctx.userAgent));
+    }
+
+    return {
+      token,
+      data: {
+        _id: user.id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role,
+        isProfileSetup: user.isProfileSetup,
+        isNewUser,
+      },
+    };
   },
 };

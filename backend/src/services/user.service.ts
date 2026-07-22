@@ -18,6 +18,7 @@ import fs from "fs";
 import path from "path";
 import { env } from "../config/env";
 import { auditLogService } from "./audit-log.service";
+import { signAccessToken } from "../utils/jwt.util";
 
 const EMAIL_VERIFY_TTL_MS = 60 * 60 * 1000;
 
@@ -76,6 +77,11 @@ export const userService = {
     const user = await userRepository.findByIdWithPassword(userId);
     if (!user) throw new ValidationError("User not found");
 
+    // --- NEW: Google-only accounts have no local password to change against.
+    if (!user.password) {
+      throw new ForbiddenError("This account uses Google sign-in and has no password to change");
+    }
+
     const currentMatches = await comparePassword(dto.currentPassword, user.password);
     if (!currentMatches) throw new UnauthorizedError("Current password is incorrect");
 
@@ -83,7 +89,11 @@ export const userService = {
     await assertNoPasswordReuse(dto.password, user.password, user.passwordHistory);
 
     const newHash = await hashPassword(dto.password);
-    const updatedHistory = buildPasswordHistoryUpdate(user.password, user.passwordChangedAt, user.passwordHistory);
+    const updatedHistory = buildPasswordHistoryUpdate(
+      user.password,
+      user.passwordChangedAt ?? new Date(0),
+      user.passwordHistory
+    );
 
     await userRepository.updatePassword(userId, newHash, updatedHistory);
 
@@ -93,6 +103,11 @@ export const userService = {
   async changeEmail(userId: string, dto: ChangeEmailDto) {
     const user = await userRepository.findByIdWithPasswordAndEmail(userId);
     if (!user) throw new ValidationError("User not found");
+
+    // --- NEW: Google-only accounts have no local password to verify against.
+    if (!user.password) {
+      throw new ForbiddenError("This account uses Google sign-in and has no password to verify");
+    }
 
     const passwordMatches = await comparePassword(dto.currentPassword, user.password);
     if (!passwordMatches) throw new UnauthorizedError("Current password is incorrect");
@@ -220,5 +235,27 @@ export const userService = {
     }
 
     return toProfileResponse(updated);
+  },
+
+
+  async updateRole(userId: string, role: "learner" | "mentor") {
+    const user = await userRepository.updateRole(userId, role);
+    if (!user) throw new ValidationError("User not found");
+
+    // A role change must invalidate the old token's stale role claim —
+    // otherwise restrictTo() keeps enforcing the pre-change role until
+    // the old token naturally expires.
+    const token = signAccessToken({ sub: user.id, role: user.role });
+
+    return {
+      token,
+      data: {
+        _id: user.id,
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role,
+        isProfileSetup: user.isProfileSetup,
+      },
+    };
   },
 };
