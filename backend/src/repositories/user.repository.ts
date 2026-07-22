@@ -13,6 +13,20 @@ export const userRepository = {
     return User.findOne({ email });
   },
 
+  findByGoogleId(googleId: string) {
+    return User.findOne({ googleId }).select("+googleId");
+  },
+
+  createGoogleUser(data: { fullname: string; email: string; googleId: string }) {
+    return User.create({
+      fullname: data.fullname,
+      email: data.email,
+      googleId: data.googleId,
+      provider: "google",
+      emailVerified: true, // Google already verified this email for us
+    });
+  },
+
   findByEmailWithPassword(email: string) {
     return User.findOne({ email }).select("+password +failedLoginAttempts +lockedUntil +passwordChangedAt");
   },
@@ -190,6 +204,10 @@ export const userRepository = {
 
   updateStatus(id: string, status: AccountStatus) {
     return User.findByIdAndUpdate(id, { status, tokenValidAfter: new Date() }, { new: true });
+  },
+
+  updateRole(id: string, role: "learner" | "mentor") {
+    return User.findByIdAndUpdate(id, { role }, { new: true });
   },
 
   softDelete(id: string) {

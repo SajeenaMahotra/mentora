@@ -6,7 +6,7 @@ export type AccountStatus = "active" | "suspended";
 export interface IUser extends Document {
   fullname: string;
   email: string;
-  password: string;
+  password?: string; // optional: Google-only accounts have no local password
   role: UserRole;
   status: AccountStatus;
 
@@ -29,7 +29,7 @@ export interface IUser extends Document {
   lockedUntil?: Date;
   unlockTokenHash?: string;
   unlockTokenExpires?: Date;
-  passwordChangedAt: Date;
+  passwordChangedAt?: Date;
   passwordHistory: PasswordHistoryEntry[];
   mfaEnabled: boolean;
   mfaSecret?: string; // encrypted
@@ -42,6 +42,10 @@ export interface IUser extends Document {
   tokenValidAfter?: Date;
   sessionUserAgentHash?: string; // JWTs issued (iat) before this are rejected — used for immediate session invalidation on suspend/delete
 
+  // --- NEW: Google OAuth
+  googleId?: string; // Google's stable "sub" claim, unique per Google account
+  provider: "local" | "google"; // how this account signs in — never both
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,7 +54,14 @@ const userSchema = new Schema<IUser>(
   {
     fullname: { type: String, required: true, trim: true, maxlength: 100 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, select: false },
+    password: {
+      type: String,
+      required: function (this: IUser) {
+        // Only required for local accounts — Google accounts never set this
+        return this.provider === "local";
+      },
+      select: false,
+    },
     role: { type: String, enum: ["learner", "mentor", "admin"], default: "learner" },
     status: { type: String, enum: ["active", "suspended"], default: "active" },
 
@@ -69,7 +80,7 @@ const userSchema = new Schema<IUser>(
     lockedUntil: { type: Date, select: false },
     unlockTokenHash: { type: String, select: false },
     unlockTokenExpires: { type: Date, select: false },
-    passwordChangedAt: { type: Date, default: Date.now, select: false },
+    passwordChangedAt: { type: Date, select: false },
     passwordHistory: {
       type: [{ hash: { type: String, required: true }, changedAt: { type: Date, required: true } }],
       default: [],
@@ -91,6 +102,14 @@ const userSchema = new Schema<IUser>(
 
     tokenValidAfter: { type: Date, select: false },
     sessionUserAgentHash: { type: String, select: false },
+
+    // --- NEW: Google OAuth
+    googleId: { type: String, unique: true, sparse: true, select: false },
+    provider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
   },
   { timestamps: true }
 );
