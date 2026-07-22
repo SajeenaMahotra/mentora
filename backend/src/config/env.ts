@@ -21,6 +21,10 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
 
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CALLBACK_URL: z.string().url(),
+
   COOKIE_SECRET: z.string().min(32),
 
   PASSWORD_MIN_LENGTH: z.coerce.number().default(12),
@@ -62,7 +66,7 @@ const envSchema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   ADMIN_IP_ALLOWLIST: z.string().default(""),
-  
+
   // --- NEW: paths to the local TLS certificate and key, relative to the backend
   // working directory. Optional: if unset the server falls back to HTTP so the
   // app still runs for anyone who clones the repo without generating certs
