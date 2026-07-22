@@ -126,3 +126,8 @@ export const importDataSchema = z
   );
 
 export type ImportDataDto = z.infer<typeof importDataSchema>;
+
+export const updateRoleSchema = z.object({
+  role: z.enum(["learner", "mentor"]),
+});
+export type UpdateRoleDto = z.infer<typeof updateRoleSchema>;

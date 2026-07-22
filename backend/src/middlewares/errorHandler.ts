@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
 import { AppError } from "../errors/AppError";
 import logger from "../config/logger";
 import { isProd } from "../config/env";
@@ -18,6 +19,29 @@ export function errorHandler(
       message: err.message,
       code: err.code,
       ...(("fields" in err && err.fields) ? { fields: (err as any).fields } : {}),
+    });
+  }
+
+  // --- NEW: DTO validation errors (Zod). Thrown by `.parse()` in controllers
+  // whenever request body/query fails schema validation. Format into a
+  // single readable sentence for the top-level message (what most of the
+  // frontend just toasts as-is), plus a structured `fields` map for forms
+  // that want to highlight the specific invalid field.
+  if (err instanceof ZodError) {
+    const fields: Record<string, string> = {};
+    for (const issue of err.issues) {
+      const key = issue.path.join(".") || "value";
+      if (!fields[key]) fields[key] = issue.message;
+    }
+    const firstMessage = err.issues[0]?.message || "Invalid input";
+    const fieldName = err.issues[0]?.path.join(".");
+    const message = fieldName ? `${fieldName}: ${firstMessage}` : firstMessage;
+
+    return res.status(400).json({
+      success: false,
+      message,
+      code: "VALIDATION_ERROR",
+      fields,
     });
   }
 

@@ -1,22 +1,37 @@
 "use client";
-import { useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/authContext";
 
 function GoogleSuccessContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { login } = useAuth();
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const userStr = searchParams.get("user");
     if (userStr) {
-      try { login(JSON.parse(decodeURIComponent(userStr))); }
-      catch { window.location.href = "/login"; }
+      try {
+        const user = JSON.parse(decodeURIComponent(userStr));
+        if (user.isNewUser) {
+          login(user, { skipRedirect: true });
+          router.replace("/confirm-role");
+        } else {
+          login(user);
+        }
+      } catch (err) {
+        console.error("Google success page error:", err);
+        window.location.href = "/login";
+      }
     } else {
       window.location.href = "/login";
     }
-  }, [searchParams, login]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

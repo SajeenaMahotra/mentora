@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { disconnectSocket } from "@/lib/socket";
 import { ENDPOINTS } from "@/lib/api/endpoints";
@@ -20,7 +20,7 @@ interface AuthContextType {
   loading: boolean;
   // --- CHANGED: no longer takes a token — the token lives in an httpOnly cookie
   // the browser manages automatically, the frontend never sees it.
-  login: (userData: User) => void;
+  login: (userData: User, options?: { skipRedirect?: boolean }) => void;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -53,9 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  const login = (userData: User) => {
+  const login = useCallback((userData: User, options?: { skipRedirect?: boolean }) => {
     setUser(userData);
     setIsAuthenticated(true);
+
+    if (options?.skipRedirect) return;
 
     if (userData.role === "mentor" && !userData.isProfileSetup) {
       router.push("/setup-profile");
@@ -66,21 +68,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       router.push("/feed");
     }
-  };
+  }, [router]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Clears the httpOnly cookie server-side.
       await api.post(ENDPOINTS.LOGOUT);
     } catch {
-      // Even if the server call fails (e.g. network issue, already-expired session),
-      // we still clear local state below — logout should never get "stuck".
+      // intentional no-op
     }
     disconnectSocket();
     setUser(null);
     setIsAuthenticated(false);
     router.push("/login");
-  };
+  }, [router]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout, setUser }}>
