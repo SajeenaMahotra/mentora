@@ -20,9 +20,13 @@ import bookingRoutes from "./routes/booking.routes";
 import notificationRoutes from "./routes/notification.routes";
 import reviewRoutes from "./routes/review.routes";
 import { stripeWebhook } from "./controllers/webhook.controller";
+import passport from "./config/passport";
 
 export function createApp(): Application {
   const app = express();
+
+
+  app.use(passport.initialize());
 
   // No reverse proxy sits in front of this app in this deployment. Trusting
 // X-Forwarded-For here would let clients spoof their own IP, defeating
