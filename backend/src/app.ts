@@ -61,7 +61,7 @@ export function createApp(): Application {
     })
   );
 
-  // --- Stripe webhook: MUST come before express.json(), needs raw body for signature verification ---
+  // Stripe webhook: MUST come before express.json(), needs raw body for signature verification 
   app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhook);
 
   app.use(express.json({ limit: "10kb" }));
