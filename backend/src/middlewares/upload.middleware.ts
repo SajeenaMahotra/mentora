@@ -9,7 +9,7 @@ import fs from "fs";
 const UPLOAD_DIR = path.join(process.cwd(), "uploads", "profile-photos");
 
 if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png"];
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png"];
@@ -19,7 +19,12 @@ const storage = multer.diskStorage({
     destination: (_req, _file, cb) => {
         cb(null, UPLOAD_DIR);
     },
+
     filename: (_req, file, cb) => {
+        // Path traversal protection: originalname is used ONLY to extract the extension
+        // (whitelisted below), never as part of the saved path. The actual filename is
+        // always a fresh UUID, so a malicious originalname like "../../etc/passwd.jpg"
+        // has no effect on where the file is written.
         const ext = path.extname(file.originalname).toLowerCase();
         const safeExt = ALLOWED_EXTENSIONS.includes(ext) ? ext : ".jpg";
         cb(null, `${crypto.randomUUID()}${safeExt}`);

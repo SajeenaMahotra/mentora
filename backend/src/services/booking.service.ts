@@ -191,6 +191,9 @@ export const bookingService = {
       throw new ValidationError("Only accepted bookings can be paid for");
     }
 
+    // Idempotency check: if this booking already has an open Stripe session, reuse it
+    // instead of creating a new one — prevents duplicate checkout sessions and the
+    // resulting payment-record overwrite on webhook confirmation 
     if (booking.stripeSessionId) {
       const existing = await stripeClient.checkout.sessions.retrieve(booking.stripeSessionId);
       if (existing.status === "open") {
@@ -198,6 +201,9 @@ export const bookingService = {
       }
     }
 
+    // Price is read from the booking record (set server-side at creation time from
+    // the package's price), never from the incoming request — there is no client-
+    // supplied price field for an attacker to tamper with.
     const session = await stripeClient.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -211,6 +217,8 @@ export const bookingService = {
           quantity: 1,
         },
       ],
+
+      
       success_url: `${origin}/bookings?payment=success`,
       cancel_url: `${origin}/bookings?payment=cancelled`,
       metadata: {

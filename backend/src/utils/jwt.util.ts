@@ -17,6 +17,8 @@ export function signAccessToken(payload: Omit<AccessTokenPayload, "type">): stri
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
   const payload = jwt.verify(token, ACCESS_SECRET) as AccessTokenPayload;
+  // Reject any token not explicitly typed "access" 
+  // — prevents replaying a partial-auth token as a full session 
   if (payload.type !== "access") {
     throw new Error("Invalid token type");
   }

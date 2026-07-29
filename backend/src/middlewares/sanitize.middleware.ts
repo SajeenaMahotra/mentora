@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 
+// Recursively strips any key starting with "$" or containing "." from user input,
+// neutralising MongoDB operator injection (e.g. {"email": {"$ne": null}}) before
+// it can reach a Mongoose query.
 function sanitizeObject(obj: any): void {
   if (!obj || typeof obj !== "object") return;
 
@@ -20,3 +23,7 @@ export function sanitizeRequest(req: Request, _res: Response, next: NextFunction
   sanitizeObject(req.query); // mutated in place only — never reassigned (Express 5 read-only getter)
   next();
 }
+
+
+
+

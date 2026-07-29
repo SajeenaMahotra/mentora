@@ -29,8 +29,8 @@ export function createApp(): Application {
   app.use(passport.initialize());
 
   // No reverse proxy sits in front of this app in this deployment. Trusting
-// X-Forwarded-For here would let clients spoof their own IP, defeating
-// IP-based rate limiting and lockout tracking (recordIpFailure/isIpBlocked).
+  // X-Forwarded-For here would let clients spoof their own IP, defeating
+  // IP-based rate limiting and lockout tracking (recordIpFailure/isIpBlocked).
   app.set("trust proxy", false);
 
   app.use(
@@ -41,25 +41,25 @@ export function createApp(): Application {
   );
 
   const allowedOrigins = [
-  env.CLIENT_URL,
-  ...env.CLIENT_URLS.split(",").map((o) => o.trim()).filter(Boolean),
-];
+    env.CLIENT_URL,
+    ...env.CLIENT_URLS.split(",").map((o) => o.trim()).filter(Boolean),
+  ];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow non-browser requests (curl, server-to-server) with no Origin header
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      logger.warn(`Blocked CORS request from disallowed origin: ${origin}`);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow non-browser requests (curl, server-to-server) with no Origin header
+        if (!origin || allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        logger.warn(`Blocked CORS request from disallowed origin: ${origin}`);
+        return callback(new Error("Not allowed by CORS"));
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
 
   // --- Stripe webhook: MUST come before express.json(), needs raw body for signature verification ---
   app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), stripeWebhook);

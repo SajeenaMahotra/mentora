@@ -3,6 +3,7 @@ import { verifyCaptcha } from "../utils/captcha.util";
 import { ValidationError, UnauthorizedError } from "../errors/AppError";
 
 export async function requireCaptcha(req: Request, res: Response, next: NextFunction) {
+  // return next(); // TEMP: bypass for X-Forwarded-For testing — REMOVE BEFORE SUBMISSION
   try {
     const { captchaToken } = req.body;
     if (!captchaToken || typeof captchaToken !== "string") {

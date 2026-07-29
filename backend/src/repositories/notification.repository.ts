@@ -63,6 +63,9 @@ export const notificationRepository = {
     return NotificationModel.countDocuments({ recipient: userId, isRead: false });
   },
 
+  // IDOR protection: recipient is included directly in the query filter, not just
+  // checked after the fact — a notification ID belonging to another user simply
+  // won't match, so findOneAndUpdate returns null instead of updating someone else's data.
   async markAsRead(
     id: Types.ObjectId | string,
     userId: Types.ObjectId | string
